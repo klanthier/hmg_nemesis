@@ -1,0 +1,115 @@
+name: Build installer from source
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      JAVA_VERSION: '17.0.17+10'
+      BUILD_TOOLS_VERSION: '30.0.3'
+      NDK_VERSION: '21.4.7075529'
+      ANDROID_PLATFORM: 'android-30'
+    steps:
+      - name: Check out the source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Install the pinned Android toolchain
+        shell: bash
+        run: |
+          sdkmanager --install \
+            "platforms;$ANDROID_PLATFORM" \
+            "build-tools;$BUILD_TOOLS_VERSION" \
+            "ndk;$NDK_VERSION"
+          echo "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION" >> "$GITHUB_PATH"
+
+      - name: Run host tests
+        run: |
+          make -C Sources test-meta
+          python3 Sources/tests/setup_press_test.py
+          python3 Sources/tests/store_logic_test.py
+          python3 Sources/tests/test_check_built_tar.py
+
+      - name: Compile and package fresh binaries
+        shell: bash
+        run: |
+          make -C Sources clean
+          rm -f Sources/manager/nemesis.keystore
+          make -C Sources troubleshooter \
+            NDK="$ANDROID_HOME/ndk/$NDK_VERSION" \
+            ANDROID_JAR="$ANDROID_HOME/platforms/$ANDROID_PLATFORM/android.jar"
+          python3 Sources/tests/check_built_tar.py
+          git diff --exit-code HEAD
+
+      - name: Record the source, toolchain, and artifact hashes
+        run: python3 Sources/tools/write_build_info.py
+
+      - name: Upload the newly built installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nemesis-installer-${{ github.sha }}
+          path: |
+            dist/ota_package.tar
+            dist/SHA256SUMS
+            dist/build-info.json
+          if-no-files-found: error
+          retention-days: 30
+
+  attest:
+    # PRs and non-default manual branches build with a read-only token and are
+    # not signed as default-branch builds. No project code runs in this job.
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download this run's installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nemesis-installer-${{ github.sha }}
+          path: dist
+
+      - name: Check the transferred files
+        working-directory: dist
+        run: sha256sum -c SHA256SUMS
+
+      - name: Attest the installer and build record
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/ota_package.tar
+            dist/build-info.json
+          create-storage-record: false
+
+      - name: Upload the signed attestation bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nemesis-provenance-${{ github.sha }}
+          path: ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 30

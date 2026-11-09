@@ -48,6 +48,12 @@ Most likely nothing, NEMESIS won't install.
 
 ## **Quick Installation Guidance**
 
+To build an installer from a selected source commit in your own fork, follow
+[Building with GitHub Actions](BUILDING.md). Each successful run provides a fresh
+`ota_package.tar`, checksums, and build metadata. Building from source does not
+change network behavior or add support for the Ioniq 6; check compatibility above
+before considering an installation.
+
 | Step | Guidance |
 | ---- | -------- |
 | 1 | Download [NEMESIS Installation Package](ota_package.tar) onto your computer. |
