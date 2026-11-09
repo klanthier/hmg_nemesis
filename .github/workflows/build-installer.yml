@@ -22,6 +22,8 @@ jobs:
       BUILD_TOOLS_VERSION: '30.0.3'
       NDK_VERSION: '21.4.7075529'
       ANDROID_PLATFORM: 'android-30'
+      SDK_TOOLS_BUILD: '13114758'
+      SDK_TOOLS_SHA256: '7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee'
     steps:
       - name: Check out the source commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -37,11 +39,26 @@ jobs:
       - name: Install the pinned Android toolchain
         shell: bash
         run: |
-          sdkmanager --install \
+          NEMESIS_ANDROID_SDK="$RUNNER_TEMP/nemesis-android-sdk"
+          echo "NEMESIS_ANDROID_SDK=$NEMESIS_ANDROID_SDK" >> "$GITHUB_ENV"
+          tools_zip="$RUNNER_TEMP/android-command-line-tools.zip"
+          curl --fail --location --retry 3 \
+            "https://dl.google.com/android/repository/commandlinetools-linux-${SDK_TOOLS_BUILD}_latest.zip" \
+            --output "$tools_zip"
+          printf '%s  %s\n' "$SDK_TOOLS_SHA256" "$tools_zip" | sha256sum -c -
+          mkdir -p "$NEMESIS_ANDROID_SDK/cmdline-tools"
+          unzip -q "$tools_zip" -d "$NEMESIS_ANDROID_SDK/cmdline-tools"
+          mv "$NEMESIS_ANDROID_SDK/cmdline-tools/cmdline-tools" \
+            "$NEMESIS_ANDROID_SDK/cmdline-tools/pinned"
+          sdkmanager="$NEMESIS_ANDROID_SDK/cmdline-tools/pinned/bin/sdkmanager"
+          printf 'y\n%.0s' {1..100} > "$RUNNER_TEMP/android-license-answers"
+          "$sdkmanager" --sdk_root="$NEMESIS_ANDROID_SDK" --licenses \
+            < "$RUNNER_TEMP/android-license-answers"
+          "$sdkmanager" --sdk_root="$NEMESIS_ANDROID_SDK" --install \
             "platforms;$ANDROID_PLATFORM" \
             "build-tools;$BUILD_TOOLS_VERSION" \
             "ndk;$NDK_VERSION"
-          echo "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION" >> "$GITHUB_PATH"
+          echo "$NEMESIS_ANDROID_SDK/build-tools/$BUILD_TOOLS_VERSION" >> "$GITHUB_PATH"
 
       - name: Run host tests
         run: |
@@ -56,8 +73,8 @@ jobs:
           make -C Sources clean
           rm -f Sources/manager/nemesis.keystore
           make -C Sources troubleshooter \
-            NDK="$ANDROID_HOME/ndk/$NDK_VERSION" \
-            ANDROID_JAR="$ANDROID_HOME/platforms/$ANDROID_PLATFORM/android.jar"
+            NDK="$NEMESIS_ANDROID_SDK/ndk/$NDK_VERSION" \
+            ANDROID_JAR="$NEMESIS_ANDROID_SDK/platforms/$ANDROID_PLATFORM/android.jar"
           python3 Sources/tests/check_built_tar.py
           git diff --exit-code HEAD
 

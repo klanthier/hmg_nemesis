@@ -31,7 +31,7 @@ def main() -> None:
     if commit != os.environ["GITHUB_SHA"]:
         raise SystemExit("checkout commit differs from the workflow source commit")
     command("git", "diff", "--exit-code", "HEAD")
-    ndk = Path(os.environ["ANDROID_HOME"]) / "ndk" / os.environ["NDK_VERSION"]
+    ndk = Path(os.environ["NEMESIS_ANDROID_SDK"]) / "ndk" / os.environ["NDK_VERSION"]
     clang = ndk / "toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang"
     repo = os.environ["GITHUB_REPOSITORY"]
     run_url = (
@@ -54,6 +54,8 @@ def main() -> None:
             "java_requested": os.environ["JAVA_VERSION"],
             "java": command("java", "-version"),
             "android_platform": os.environ["ANDROID_PLATFORM"],
+            "sdk_tools_build": os.environ["SDK_TOOLS_BUILD"],
+            "sdk_tools_sha256": os.environ["SDK_TOOLS_SHA256"],
             "android_build_tools": os.environ["BUILD_TOOLS_VERSION"],
             "ndk": os.environ["NDK_VERSION"],
             "clang": command(str(clang), "--version"),

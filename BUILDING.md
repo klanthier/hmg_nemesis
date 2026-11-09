@@ -106,12 +106,15 @@ The workflow uses this toolchain:
 | GitHub-hosted runner | Ubuntu 22.04 |
 | Java | Temurin 17.0.17+10 |
 | Android SDK platform | API 30 |
+| Android Command-Line Tools | Build 13114758, SHA-256 checked |
 | Android Build Tools | 30.0.3 |
 | Android NDK | 21.4.7075529 (r21e) |
 
 Checkout, Java setup, artifact upload/download, and `actions/attest` (v4.2.2)
-actions are pinned to full commit IDs in the workflow. Android tools are
-installed through `sdkmanager`; the build uses the `Sources` Makefile's
+actions are pinned to full commit IDs in the workflow. The workflow downloads
+the pinned command-line tools directly from Google and verifies the archive
+checksum before using `sdkmanager` to install the selected SDK/NDK packages.
+The build uses the `Sources` Makefile's
 `troubleshooter` target:
 
 ```sh
