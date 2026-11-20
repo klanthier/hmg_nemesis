@@ -82,6 +82,7 @@ jobs:
           make -C "NEMESIS Source" test-meta
           python3 "NEMESIS Source/tests/setup_press_test.py"
           python3 "NEMESIS Source/tests/store_logic_test.py"
+          python3 "NEMESIS Source/tests/offline_policy_test.py"
           python3 "NEMESIS Source/tests/test_check_built_tar.py"
           python3 "NEMESIS Source/tests/test_check_built_update.py"
           python3 "NEMESIS Source/tests/test_check_built_usb.py"

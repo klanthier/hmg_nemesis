@@ -128,6 +128,11 @@ public class DialogActivity extends Activity {
     private void bind(Intent intent) {
         mode = intent.getStringExtra("nemesis_mode");
         if (mode == null) mode = "invalid";
+        if ("confirm_online_update".equals(mode) || "confirm_modem".equals(mode)) {
+            // Also reject stale online-update intents and their cached download paths.
+            mode = "result_fail";
+            intent.putExtra("nemesis_message", getString(R.string.usb_only));
+        }
         usb = intent.hasExtra("session_dir");
         sessionDir = intent.getStringExtra("session_dir");
         if (sessionDir == null) sessionDir = "/data/nemesis/usb-session";
@@ -434,7 +439,7 @@ public class DialogActivity extends Activity {
         });
     }
 
-    /** Settings: the stick's update first, then the portal. */
+    /** Settings: check the mounted stick for a core update. */
     private void runUpdateCheck() {
         new Thread(new Runnable() {
             public void run() {
@@ -454,21 +459,7 @@ public class DialogActivity extends Activity {
                     }
                     return;
                 }
-                try {
-                    java.io.File f = UpdateService.fetch(DialogActivity.this, new Runnable() {
-                        public void run() {
-                            goOnUi("progress", getString(R.string.downloading), null, null);
-                        }
-                    });
-                    if (f == null) {
-                        goOnUi("up_to_date", null, null, null);
-                        return;
-                    }
-                    goOnUi("confirm_online_update", null, f.getPath(), UpdateService.zipVersion(f));
-                } catch (Throwable t) {
-                    CrashLog.note("update.log", "check failed: " + t);
-                    goOnUi("result_fail", getString(R.string.update_offline), null, null);
-                }
+                goOnUi("result_fail", getString(R.string.usb_only), null, null);
             }
         }).start();
     }

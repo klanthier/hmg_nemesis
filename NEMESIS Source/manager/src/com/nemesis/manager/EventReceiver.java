@@ -5,8 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.SystemClock;
 
-/** ANDROID_UP from the watchdog, UPDATE_TICK from the Update Monitor service, and the
- *  head unit's screen broadcasts: the screen coming back with Android still up. */
+/** ANDROID_UP from the watchdog and the head unit's screen broadcasts. */
 public class EventReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -20,8 +19,7 @@ public class EventReceiver extends BroadcastReceiver {
             if (!AutoLaunch.takeOff(context, SystemClock.elapsedRealtime())) return;
             action = UpdateService.ACTION_WOKE;
         } else
-        if (!UpdateService.ACTION_ANDROID_UP.equals(action)
-                && !UpdateService.ACTION_TICK.equals(action)) return;
+        if (!UpdateService.ACTION_ANDROID_UP.equals(action)) return;
         Intent i = new Intent(context, UpdateService.class);
         i.setAction(action);
         context.startService(i);

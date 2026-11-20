@@ -3,9 +3,11 @@
 import subprocess
 import zipfile
 from pathlib import Path
+from check_manager_apk import check_offline_apk
 
 ROOT = Path(__file__).resolve().parents[2] / 'USB package path/installer'
 apk = ROOT / 'NEMESIS-Installer.apk'
+check_offline_apk(apk)
 with zipfile.ZipFile(apk) as z:
     names = z.namelist()
     assert len(names) == len(set(names)), 'duplicate APK entries'

@@ -9,7 +9,7 @@ import android.os.SystemClock;
 import java.io.File;
 import java.util.Map;
 
-/** Android-up work and the background update check. Runs off the main thread. */
+/** Android-up and screen-wake work. Online checks are disabled in this build. */
 public class UpdateService extends IntentService {
     static final String ACTION_ANDROID_UP = "com.nemesis.manager.ANDROID_UP";
     static final String ACTION_TICK = "com.nemesis.manager.UPDATE_TICK";
@@ -25,15 +25,14 @@ public class UpdateService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        if (intent == null) return;
+        if (intent == null || ACTION_TICK.equals(intent.getAction())) return;
         try {
             if (ACTION_ANDROID_UP.equals(intent.getAction())) AutoLaunch.run(this);
             if (ACTION_WOKE.equals(intent.getAction())) {
                 SystemClock.sleep(WOKE_DELAY_MS);
                 AutoLaunch.run(this);
             }
-            sweep(this);
-            if (!backgroundCheck()) packageCheck();
+            // Keep auto-launch behavior without background update checks.
         } catch (Throwable t) {
             CrashLog.note("update.log", "service: " + t);
         }

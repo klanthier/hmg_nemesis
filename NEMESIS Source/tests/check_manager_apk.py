@@ -12,6 +12,23 @@ ROOT = Path(__file__).resolve().parents[1]
 APK = ROOT / "manager" / "NEMESIS.apk"
 SRC = ROOT / "manager" / "src" / "com" / "nemesis" / "manager"
 AAPT = "aapt"
+NETWORK_CODE = re.compile(
+    rb"java[./]net[./]|javax[./]net[./]|org[./]apache[./]http[./]|okhttp3[./]|"
+    rb"android[./](?:net[./](?:ConnectivityManager|Network;)|app[./]DownloadManager|webkit[./]WebView)|"
+    rb"https?://|xwtk\.cloud", re.I,
+)
+
+
+def check_offline_apk(apk: Path) -> None:
+    """Regression checks on compiled code, excluding inert resource links."""
+    dump = subprocess.check_output([AAPT, "dump", "xmltree", str(apk), "AndroidManifest.xml"], text=True)
+    assert "android.permission.INTERNET" not in dump, "APK requests INTERNET"
+    assert "sharedUserId" not in dump, "shared UID defeats permission isolation"
+    with zipfile.ZipFile(apk) as archive:
+        names = archive.namelist()
+        assert [n for n in names if n.endswith(".dex")] == ["classes.dex"], "unexpected DEX payload"
+        assert not any(n.startswith("lib/") for n in names), "unexpected native APK payload"
+        assert not NETWORK_CODE.search(archive.read("classes.dex")), "network API or endpoint in compiled code"
 
 
 def fail(msg: str) -> None:
@@ -27,6 +44,7 @@ def dex_blob() -> bytes:
 def main() -> None:
     if not APK.is_file():
         fail(f"missing {APK}")
+    check_offline_apk(APK)
     with zipfile.ZipFile(APK) as z:
         names = z.namelist()
     nine = [n for n in names if n.endswith(".9.png")]
@@ -50,10 +68,10 @@ def main() -> None:
         text=True,
         errors="replace",
     )
-    if "(type 0x10)0x1a" not in dump:
-        fail("Manager versionCode is not 26:\n" + dump[:800])
-    if 'versionName(0x0101021c)="1.16.9"' not in dump and '="1.16.9"' not in dump:
-        fail("Manager versionName is not 1.16.9:\n" + dump[:800])
+    if "(type 0x10)0x1c" not in dump:
+        fail("Manager versionCode is not 28:\n" + dump[:800])
+    if 'versionName(0x0101021c)="1.16.9.2"' not in dump and '="1.16.9.2"' not in dump:
+        fail("Manager versionName is not 1.16.9.2:\n" + dump[:800])
     if "SetupReceiver" not in dump or "mobis.intent.action.SHORTCUT_SETUP" not in dump:
         fail("AndroidManifest missing SETUP shortcut receiver")
     if "mobis.intent.action.SHORTCUT_MODE" not in dump:
@@ -97,7 +115,7 @@ def main() -> None:
         fail("activity_main missing ListView id list")
     if "com.nemesis.manager.IconPager" not in tree:
         fail("activity_main missing the icon pager")
-    for perm in ("android.permission.INTERNET", "android.permission.GET_TASKS"):
+    for perm in ("android.permission.GET_TASKS",):
         if perm not in dump:
             fail(f"AndroidManifest missing {perm}")
     for comp in ("StoreActivity", "SettingsActivity", "AppsActivity", "UpdateService", "EventReceiver"):
@@ -155,7 +173,7 @@ def main() -> None:
         fail("popup card is full height")
     if "@drawable/co_bg\"" in dlg:
         fail("popup card uses the full-screen background bitmap")
-    print("OK: Manager APK DEX 035, all Java classes present, no Application, versionCode 26")
+    print("OK: offline Manager APK DEX 035, all Java classes present, no Application, versionCode 28")
 
 
 if __name__ == "__main__":

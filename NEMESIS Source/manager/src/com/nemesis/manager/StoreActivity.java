@@ -60,9 +60,10 @@ public class StoreActivity extends Activity {
             return;
         }
         Ui.bindTitle(this, R.string.store);
-        usbTab = "usb".equals(getIntent().getStringExtra("store_mode"));
-        fromUsb = usbTab;
-        usbLaunchCheck = usbTab;
+        usbTab = true;
+        fromUsb = "usb".equals(getIntent().getStringExtra("store_mode"));
+        usbLaunchCheck = fromUsb;
+        findViewById(R.id.tab_online).setVisibility(View.GONE);
         click(R.id.btn_updates, new Runnable() {
             public void run() {
                 startActivity(new Intent(StoreActivity.this, UpdatesActivity.class));
@@ -154,7 +155,6 @@ public class StoreActivity extends Activity {
                         usbOk = hasList;
                         usbRoot = root;
                         usbRows = rows;
-                        if (usbTab && !usbOk) usbTab = false;
                         showRows();
                     }
                 });
