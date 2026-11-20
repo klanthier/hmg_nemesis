@@ -1,7 +1,6 @@
 package com.nemesis.manager;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
@@ -16,8 +15,6 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,22 +28,14 @@ public class StoreActivity extends Activity {
     private static final int RED = 0xFFD9685F;
     private static final int PLAIN = 0xFFB6C1C8;
 
-    private boolean usbTab;
     private boolean usbOk;
-    private boolean onlineOk;
-    private boolean offlineShown;
     private String usbRoot;
-    private List<StoreList.Entry> usbRows = new ArrayList<StoreList.Entry>();
-    private List<StoreList.Entry> onlineRows = new ArrayList<StoreList.Entry>();
     private List<StoreList.Entry> all = new ArrayList<StoreList.Entry>();
     private List<StoreList.Entry> shown = new ArrayList<StoreList.Entry>();
     private boolean showAll;
     private boolean byDate = true;
     private boolean ascending;
     private int loadGen;
-    private int resolveGen;
-    /** Opened by a list stick: its popup goes first, and online being down is no news. */
-    private boolean fromUsb;
     /** The stick's one package update check, spent on the first load. */
     private boolean usbLaunchCheck;
     private final RowAdapter adapter = new RowAdapter();
@@ -60,9 +49,7 @@ public class StoreActivity extends Activity {
             return;
         }
         Ui.bindTitle(this, R.string.store);
-        usbTab = "usb".equals(getIntent().getStringExtra("store_mode"));
-        fromUsb = usbTab;
-        usbLaunchCheck = usbTab;
+        usbLaunchCheck = "usb".equals(getIntent().getStringExtra("store_mode"));
         click(R.id.btn_updates, new Runnable() {
             public void run() {
                 startActivity(new Intent(StoreActivity.this, UpdatesActivity.class));
@@ -74,16 +61,6 @@ public class StoreActivity extends Activity {
         lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> p, View v, int pos, long id) {
                 if (pos < shown.size()) open(shown.get(pos));
-            }
-        });
-        click(R.id.tab_usb, new Runnable() {
-            public void run() {
-                if (usbOk) switchTab(true);
-            }
-        });
-        click(R.id.tab_online, new Runnable() {
-            public void run() {
-                if (onlineOk) switchTab(false);
             }
         });
         click(R.id.sort_field, new Runnable() {
@@ -132,19 +109,15 @@ public class StoreActivity extends Activity {
         if (findViewById(R.id.search) != null) load();
     }
 
-    private void switchTab(boolean usb) {
-        usbTab = usb;
-        showRows();
-    }
-
-    /** The stick answers at once; the portal may take its whole connect timeout. */
+    /** Load package metadata only from the mounted USB drive. */
     private void load() {
         final int gen = ++loadGen;
         new Thread(new Runnable() {
             public void run() {
                 Map<String, String> info = Cli.fields(Cli.run("usb-info"));
-                final boolean hasList = "list".equals(info.get("type"));
                 final String root = info.get("root");
+                final boolean hasList = "list".equals(info.get("type"))
+                        && root != null && root.length() > 0;
                 final List<StoreList.Entry> rows = hasList
                         ? StoreList.parseList(Cli.run("usb-info", "--list"))
                         : new ArrayList<StoreList.Entry>();
@@ -153,39 +126,24 @@ public class StoreActivity extends Activity {
                         if (gen != loadGen || isFinishing()) return;
                         usbOk = hasList;
                         usbRoot = root;
-                        usbRows = rows;
-                        if (usbTab && !usbOk) usbTab = false;
-                        showRows();
+                        all = rows;
+                        refresh();
                     }
                 });
-                List<StoreList.Entry> online = null;
-                try {
-                    online = Portal.catalog(StoreActivity.this);
-                } catch (Throwable t) {
-                    CrashLog.note("update.log", "catalog: " + t);
+                for (int k = 0; k < rows.size() && gen == loadGen; k++) {
+                    StoreList.Entry e = rows.get(k);
+                    try {
+                        resolveUsb(e, root);
+                    } catch (Throwable t) {
+                        CrashLog.note("update.log", "USB descriptor " + e.name + ": " + t);
+                    }
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            if (gen == loadGen && !isFinishing()) refresh();
+                        }
+                    });
                 }
-                final List<StoreList.Entry> onlineFinal = online;
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        if (gen != loadGen || isFinishing()) return;
-                        onlineOk = onlineFinal != null;
-                        onlineRows = onlineOk ? onlineFinal : new ArrayList<StoreList.Entry>();
-                        if (!onlineOk && !offlineShown && !(fromUsb && usbOk)) {
-                            offlineShown = true;
-                            Intent i = new Intent(StoreActivity.this, DialogActivity.class);
-                            i.putExtra("nemesis_mode", "result_fail");
-                            i.putExtra("nemesis_message", getString(R.string.store_offline));
-                            startActivity(i);
-                        }
-                        if (!usbTab) {
-                            if (!onlineOk && usbOk) usbTab = true;
-                            showRows();
-                        } else {
-                            refresh();
-                        }
-                    }
-                });
-                final int count = PkgUpdates.find(StoreActivity.this).updates.size();
+                final int count = StoreList.updates(rows).size();
                 runOnUiThread(new Runnable() {
                     public void run() {
                         if (gen != loadGen || isFinishing()) return;
@@ -200,39 +158,21 @@ public class StoreActivity extends Activity {
         }).start();
     }
 
-    private void showRows() {
-        all = usbTab ? usbRows : onlineRows;
-        refresh();
-        resolve(++resolveGen, all, usbTab, usbRoot);
-    }
-
-    /** Listing uses only the supply data; compatibility comes from each descriptor. */
-    private void resolve(final int gen, final List<StoreList.Entry> rows, final boolean usb,
-                         final String root) {
-        new Thread(new Runnable() {
-            public void run() {
-                for (int i = 0; i < rows.size() && gen == resolveGen; i++) {
-                    StoreList.Entry e = rows.get(i);
-                    try {
-                        if (usb) resolveUsb(e, root);
-                        else resolveOnline(StoreActivity.this, e);
-                    } catch (Throwable t) {
-                        CrashLog.note("update.log", "descriptor " + e.name + ": " + t);
-                    }
-                    runOnUiThread(new Runnable() {
-                        public void run() {
-                            if (gen == resolveGen && !isFinishing()) refresh();
-                        }
-                    });
-                }
-            }
-        }).start();
-    }
-
     static void resolveUsb(StoreList.Entry e, String root) {
+        if (root == null || root.length() == 0 || !StoreList.relOk(e.path)) {
+            e.localZip = "";
+            e.compat = StoreList.NONE;
+            return;
+        }
         e.localZip = root + "/" + e.path;
+        if (!UsbPaths.contains(root, e.localZip)) {
+            e.localZip = "";
+            e.compat = StoreList.NONE;
+            return;
+        }
         Cli.Result r = Cli.exec("pkg-info", e.localZip);
         if (r.rc != 0) {
+            e.localZip = "";
             e.compat = StoreList.NONE;
             return;
         }
@@ -249,28 +189,6 @@ public class StoreActivity extends Activity {
         e.reasons = StoreList.reasons(r.out);
     }
 
-    static void resolveOnline(Context ctx, StoreList.Entry e) throws Exception {
-        // Local state first: an installed package can still be removed when the portal is out of reach.
-        Map<String, String> m = Cli.fields(Cli.run("pkg-info", e.id));
-        e.isInstalled = "1".equals(m.get("installed"));
-        e.installed = or(m.get("installed-version"), "");
-        e.locked = "1".equals(m.get("locked"));
-        // The installed copy's own text, for when the portal cannot be reached.
-        if (e.isInstalled) e.detailedDesc = PackageActivity.unescape(or(m.get("detailed-desc"), ""));
-        JSONObject d = Portal.descriptor(ctx, e.id);
-        e.version = d.optString("package-version", "");
-        e.url = d.optString("url", "");
-        e.sha256 = d.optString("sha256", "");
-        e.legacy = StoreList.isLegacy(d.optString("descriptor", ""));
-        String more = d.optString("detailed-desc", "");
-        if (more.length() > 0) e.detailedDesc = more;
-        e.depends = d.optString("depends", "");
-        if (e.name.length() == 0) e.name = d.optString("name", e.id);
-        String verdict = Cli.run("compat-check", d.optString("os", "any"), d.optString("models", "any"), e.depends);
-        e.compat = StoreList.compatOf(Cli.fields(verdict).get("compat"));
-        e.reasons = StoreList.reasons(verdict);
-    }
-
     private static String or(String v, String d) {
         return v == null ? d : v;
     }
@@ -279,8 +197,7 @@ public class StoreActivity extends Activity {
         String q = ((EditText) findViewById(R.id.search)).getText().toString();
         shown = StoreList.view(all, q, showAll, byDate, ascending);
         adapter.notifyDataSetChanged();
-        tab(R.id.tab_usb, usbOk, usbTab);
-        tab(R.id.tab_online, onlineOk, !usbTab);
+        ((TextView) findViewById(R.id.empty)).setText(usbOk ? R.string.empty_store : R.string.empty_store_usb);
         ((Button) findViewById(R.id.sort_field)).setText(byDate ? R.string.sort_date : R.string.sort_name);
         ((Button) findViewById(R.id.sort_dir)).setText(ascending ? "↑" : "↓");
         Button more = (Button) findViewById(R.id.show_all);
@@ -290,23 +207,14 @@ public class StoreActivity extends Activity {
                 : getString(R.string.show_all).replace("%d", String.valueOf(hidden)));
     }
 
-    private void tab(int id, boolean enabled, boolean on) {
-        Button t = (Button) findViewById(id);
-        t.setEnabled(enabled);
-        t.setAlpha(enabled ? 1f : 0.35f);
-        t.setTextColor(on && enabled ? 0xFFFFFFFF : 0xFF62797F);
-    }
-
     private void open(StoreList.Entry e) {
         Intent i = new Intent(this, StoreDetailActivity.class);
         i.putExtra("store_id", e.id);
         i.putExtra("store_name", e.name);
         i.putExtra("store_short", e.shortDesc);
         i.putExtra("store_published", e.published);
-        if (usbTab) {
-            i.putExtra("store_root", usbRoot);
-            i.putExtra("store_path", e.path);
-        }
+        i.putExtra("store_root", usbRoot);
+        i.putExtra("store_path", e.path);
         startActivity(i);
     }
 

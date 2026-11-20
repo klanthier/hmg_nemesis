@@ -17,7 +17,6 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DialogActivity extends Activity {
     private String mode;
@@ -32,9 +31,7 @@ public class DialogActivity extends Activity {
     /** Steps of a Store job waiting for the user's yes. */
     private List<StoreList.Entry> pending;
     private boolean storeRisk;
-    /** Set while a download can be cancelled. Whoever flips it first decides. */
-    private volatile AtomicBoolean downloadCancel;
-    /** Background checks stay quiet while this popup is on screen. */
+    /** Tracks whether a local confirmation popup is on screen. */
     static volatile boolean visible;
 
     /** Install or update `e`. The caller adds nemesis_mode. */
@@ -43,12 +40,7 @@ public class DialogActivity extends Activity {
         i.putExtra("nemesis_name", e.name);
         i.putExtra("nemesis_id", e.id);
         i.putExtra("nemesis_depends", e.depends);
-        if (e.localZip.length() > 0) {
-            i.putExtra("nemesis_path", e.localZip);
-        } else {
-            i.putExtra("nemesis_url", e.url);
-            i.putExtra("nemesis_sha256", e.sha256);
-        }
+        i.putExtra("nemesis_path", e.localZip);
         if (e.isInstalled) i.putExtra("nemesis_replace", e.id);
         return i;
     }
@@ -115,10 +107,6 @@ public class DialogActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (downloadCancel != null) {
-            cancelDownload();
-            return;
-        }
         if (progressing) return;
         if (confirm) writeReply("no");
         else writeReply("ok");
@@ -177,14 +165,11 @@ public class DialogActivity extends Activity {
             msg.setText(count == 1 ? getString(R.string.pkg_updates_one)
                     : getString(R.string.pkg_updates_many).replace("%d", String.valueOf(count)));
             confirm = true;
-        } else if ("confirm_modem".equals(mode)) {
-            msg.setText(R.string.confirm_modem);
-            confirm = true;
+        } else if ("confirm_modem".equals(mode) || "confirm_online_update".equals(mode)) {
+            // Older builds can leave pending intents; they must never re-enable online behavior.
+            msg.setText(R.string.usb_only);
         } else if ("confirm_deps".equals(mode)) {
             msg.setText(custom);
-            confirm = true;
-        } else if ("confirm_online_update".equals(mode)) {
-            msg.setText(R.string.update_ready);
             confirm = true;
         } else if ("confirm_store_install".equals(mode)) {
             msg.setText(getString(R.string.confirm_store_install).replace("%s", name != null ? name : ""));
@@ -336,7 +321,7 @@ public class DialogActivity extends Activity {
             runStop();
             return;
         }
-        if ("confirm_online_update".equals(mode) || (localPath != null && "confirm_update".equals(mode))) {
+        if (localPath != null && "confirm_update".equals(mode)) {
             showProgress(getString(R.string.updating));
             runUpdate(localPath, false);
             return;
@@ -350,11 +335,6 @@ public class DialogActivity extends Activity {
             Intent i = new Intent(this, UpdatesActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(i);
-            Ui.close(this);
-            return;
-        }
-        if ("confirm_modem".equals(mode)) {
-            Portal.setUseTelematics(this, true);
             Ui.close(this);
             return;
         }
@@ -434,7 +414,7 @@ public class DialogActivity extends Activity {
         });
     }
 
-    /** Settings: the stick's update first, then the portal. */
+    /** Settings checks only the currently mounted USB update descriptor. */
     private void runUpdateCheck() {
         new Thread(new Runnable() {
             public void run() {
@@ -442,7 +422,8 @@ public class DialogActivity extends Activity {
                 Cli.Result usbInfo = Cli.exec("usb-info");
                 java.util.Map<String, String> info = Cli.fields(usbInfo.out);
                 String zip = info.get("path");
-                if (usbInfo.rc == 0 && "update".equals(info.get("type")) && zip != null) {
+                if (usbInfo.rc == 0 && "1".equals(info.get("mounted"))
+                        && "update".equals(info.get("type")) && UsbPaths.contains(info.get("root"), zip)) {
                     java.util.Map<String, String> meta = Cli.fields(Cli.run("pkg-info", zip));
                     String v = meta.get("package-version");
                     if (v == null || !"nemesis.core".equals(meta.get("id"))) {
@@ -454,21 +435,7 @@ public class DialogActivity extends Activity {
                     }
                     return;
                 }
-                try {
-                    java.io.File f = UpdateService.fetch(DialogActivity.this, new Runnable() {
-                        public void run() {
-                            goOnUi("progress", getString(R.string.downloading), null, null);
-                        }
-                    });
-                    if (f == null) {
-                        goOnUi("up_to_date", null, null, null);
-                        return;
-                    }
-                    goOnUi("confirm_online_update", null, f.getPath(), UpdateService.zipVersion(f));
-                } catch (Throwable t) {
-                    CrashLog.note("update.log", "check failed: " + t);
-                    goOnUi("result_fail", getString(R.string.update_offline), null, null);
-                }
+                goOnUi("result_fail", getString(R.string.update_offline), null, null);
             }
         }).start();
     }
@@ -476,8 +443,12 @@ public class DialogActivity extends Activity {
     private void runUpdate(final String path, final boolean risk) {
         new Thread(new Runnable() {
             public void run() {
-                final Cli.Result r = path == null ? new Cli.Result(1, "")
-                        : risk ? Cli.exec("update", "--accept-risk", path) : Cli.exec("update", path);
+                if (!isUsbFile(path)) {
+                    goOnUi("result_fail", getString(R.string.usb_only), null, null);
+                    return;
+                }
+                final Cli.Result r = risk ? Cli.exec("update", "--accept-risk", path)
+                        : Cli.exec("update", path);
                 if (r.rc == 20) {
                     goOnUi("confirm_update_risk", null, null, null);
                 } else if (r.rc == 0) {
@@ -497,14 +468,12 @@ public class DialogActivity extends Activity {
         }).start();
     }
 
-    /** Works out what the package needs before anything is downloaded or changed. */
+    /** Works out USB dependencies before changing any installed package. */
     private void onStoreYes() {
         storeRisk = "confirm_risk".equals(mode) || getIntent().getBooleanExtra("nemesis_risk", false);
         final StoreList.Entry main = new StoreList.Entry();
         main.id = targetId != null ? targetId : "";
         main.name = targetName != null ? targetName : "";
-        main.url = getIntent().getStringExtra("nemesis_url");
-        main.sha256 = getIntent().getStringExtra("nemesis_sha256");
         main.localZip = localPath != null ? localPath : "";
         main.isInstalled = getIntent().hasExtra("nemesis_replace");
         main.depends = getIntent().getStringExtra("nemesis_depends");
@@ -523,7 +492,11 @@ public class DialogActivity extends Activity {
     }
 
     private void planStore(StoreList.Entry main) {
-        if (main.localZip.length() > 0) {
+        if (!isUsbFile(main.localZip)) {
+            goOnUi("result_fail", getString(R.string.usb_only), null, null);
+            return;
+        }
+        {
             Cli.Result info = Cli.exec("pkg-info", main.localZip);
             Map<String, String> m = Cli.fields(info.out);
             if (m.get("id") != null) main.id = m.get("id");
@@ -614,7 +587,7 @@ public class DialogActivity extends Activity {
         }).start();
     }
 
-    /** A power cut mid-download leaves a zip nothing else would remove. */
+    /** Remove old online-build leftovers; USB inputs are never cached here. */
     private void sweepCache() {
         File[] files = getCacheDir().listFiles();
         for (int k = 0; files != null && k < files.length; k++) {
@@ -624,40 +597,17 @@ public class DialogActivity extends Activity {
 
     private boolean runStep(StoreList.Entry e, boolean last) {
         String path = e.localZip;
-        File cached = null;
-        if (path.length() == 0) {
-            AtomicBoolean cancel = new AtomicBoolean();
-            downloadCancel = cancel;
-            progressOnUi(getString(R.string.downloading_named).replace("%s", e.name), true);
-            try {
-                cached = Portal.download(this, e.url, e.sha256, "store-package-" + System.nanoTime() + ".zip", cancel);
-            } catch (Portal.Cancelled c) {
-                return false;
-            } catch (Throwable t) {
-                CrashLog.note("update.log", "store download failed: " + t);
-                downloadCancel = null;
-                goOnUi("result_fail", getString(R.string.download_fail), null, null);
-                return false;
-            }
-            if (!cancel.compareAndSet(false, true)) {
-                if (cached != null) cached.delete();
-                return false;
-            }
-            downloadCancel = null;
-            if (cached == null) {
-                goOnUi("result_fail", getString(R.string.download_bad), null, null);
-                return false;
-            }
-            path = cached.getPath();
+        if (!isUsbFile(path)) {
+            goOnUi("result_fail", getString(R.string.usb_only), null, null);
+            return false;
         }
-        progressOnUi(getString(R.string.installing_named).replace("%s", e.name), false);
+        progressOnUi(getString(R.string.installing_named).replace("%s", e.name));
         List<String> args = new ArrayList<String>();
         args.add("install");
         if (e.isInstalled) args.add("--update");
         if (last && storeRisk) args.add("--accept-risk");
         args.add(path);
         Cli.Result r = Cli.exec(args.toArray(new String[args.size()]));
-        if (cached != null) cached.delete();
         if (r.rc == 0) return true;
         CrashLog.note("update.log", "store install " + e.id + " rc=" + r.rc);
         if (r.rc == 20 && last) {
@@ -672,38 +622,18 @@ public class DialogActivity extends Activity {
         return false;
     }
 
-    private void progressOnUi(final String text, final boolean download) {
+    /** Re-read the mount for every operation, including exported/stale activity intents. */
+    private boolean isUsbFile(String path) {
+        Map<String, String> info = Cli.fields(Cli.run("usb-info"));
+        return "1".equals(info.get("mounted")) && UsbPaths.contains(info.get("root"), path);
+    }
+
+    private void progressOnUi(final String text) {
         runOnUiThread(new Runnable() {
             public void run() {
-                if (isFinishing()) return;
-                if (download) showDownload(text);
-                else showProgress(text);
+                if (!isFinishing()) showProgress(text);
             }
         });
-    }
-
-    private void showDownload(String text) {
-        showProgress(text);
-        View bar = findViewById(R.id.btn_bar);
-        Button yes = (Button) findViewById(R.id.button1);
-        Button no = (Button) findViewById(R.id.button2);
-        if (bar == null || yes == null || no == null) return;
-        bar.setVisibility(View.VISIBLE);
-        yes.setVisibility(View.GONE);
-        no.setText(R.string.cancel);
-        no.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                cancelDownload();
-            }
-        });
-    }
-
-    /** Ignored once the download has finished and its install is about to start. */
-    private void cancelDownload() {
-        AtomicBoolean c = downloadCancel;
-        if (c == null || !c.compareAndSet(false, true)) return;
-        downloadCancel = null;
-        Ui.close(this);
     }
 
     private void runUninstall() {

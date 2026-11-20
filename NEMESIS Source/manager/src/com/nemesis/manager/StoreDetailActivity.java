@@ -67,8 +67,12 @@ public class StoreDetailActivity extends Activity {
                 final StoreList.Entry e = fresh();
                 boolean bad = false;
                 try {
-                    if (root != null) StoreActivity.resolveUsb(e, root);
-                    else StoreActivity.resolveOnline(StoreDetailActivity.this, e);
+                    if (root == null || root.length() == 0 || !StoreList.relOk(path)) {
+                        bad = true;
+                    } else {
+                        StoreActivity.resolveUsb(e, root);
+                        bad = e.localZip.length() == 0;
+                    }
                 } catch (Throwable t) {
                     bad = true;
                     CrashLog.note("update.log", "descriptor " + e.name + ": " + t);
@@ -113,7 +117,7 @@ public class StoreDetailActivity extends Activity {
         a.setText(bad ? R.string.retry : differs ? R.string.update : R.string.install);
         a.setVisibility(!loading && (bad || known && (!e.isInstalled || differs)) ? View.VISIBLE : View.GONE);
         b.setText(R.string.uninstall);
-        // Removing needs nothing from the portal, so a failed fetch does not hide it.
+        // A failed USB read does not hide removal of an installed package.
         b.setVisibility(!loading && e.isInstalled && !e.locked && (known || bad) ? View.VISIBLE : View.GONE);
     }
 
@@ -124,7 +128,7 @@ public class StoreDetailActivity extends Activity {
         }
         StoreList.Entry e = entry;
         Intent i = DialogActivity.storeIntent(this, e);
-        // An incompatible package gets the risk popup from either tab, update or not.
+        // An incompatible USB package still requires explicit risk acceptance.
         if (e.compat == StoreList.NONE) {
             i.putExtra("nemesis_mode", "confirm_risk");
             i.putExtra("nemesis_risk", true);

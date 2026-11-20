@@ -61,6 +61,15 @@ def main() -> None:
         "runner_image": os.environ.get("ImageOS", ""),
         "runner_image_version": os.environ.get("ImageVersion", ""),
         "version": version,
+        "build_profile": "usb-only",
+        "network_policy": {
+            "manager_internet_permission": False,
+            "online_store_and_download_client": "removed",
+            "background_update_requests": "removed",
+            "device_metadata_requests": "removed",
+            "updates_and_dependencies": "USB only",
+            "scope": "Source-built Nemesis Manager and built-in services; not a vehicle-wide firewall or sandbox for installed mods, scripts or inherited navigation libraries.",
+        },
         "upstream_commit": "357a1440df3bd35f06393b96280a725f3efac226",
         "build_targets": ["USB OTA troubleShooter path", "USB package path", "core update ZIP"],
         "complete_usb_entrypoint_built": True,
@@ -89,6 +98,7 @@ def main() -> None:
         "validation": {
             "embedded_payloads_match_fresh_build": True,
             "tracked_source_unchanged": True,
+            "offline_source_and_apk_checks_passed": True,
             "vehicle_tested": False,
         },
         "signing": "Fresh per-run APK key; not the upstream signing identity.",
@@ -104,12 +114,13 @@ def main() -> None:
         for name in [*outputs, "build-info.json"]
     ))
     summary = (
-        f"Built installer from `{commit}`.\n\n"
+        f"Built USB-only installer from `{commit}`.\n\n"
         f"SHA-256: `{info['sha256']['ota_package.tar']}`\n\n"
-        "Download `nemesis-installer-" + commit + "` from this run's artifacts. "
+        "Download `nemesis-usb-only-" + commit + "` from this run's artifacts. "
         "It contains the complete USB installation .7z, OTA tar, core update ZIP/descriptor, Installer APK, checksums, and build record. "
         "The full USB bundle includes checksum-pinned upstream navigation binaries and signed support files; "
-        "Nemesis binaries are freshly compiled. Runtime/network behavior is unchanged. "
+        "Nemesis binaries are freshly compiled. The Manager has no INTERNET permission or online client; packages and updates use USB. "
+        "This is not a vehicle-wide network block and does not constrain third-party mods or inherited navigation binaries. "
         "No vehicle installation or compatibility test was performed.\n"
     )
     with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as out:

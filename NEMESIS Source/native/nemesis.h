@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define NEMESIS_VERSION "1.16.9"
+#define NEMESIS_VERSION "1.16.9.1"
 #define NEMESIS_ROOT "/data/nemesis"
 #define NEMESIS_APPS "/data/nemesis/apps"
 #define NEMESIS_TMP "/data/local/tmp/nemesis"
@@ -30,7 +30,7 @@
 #define USB2 "/storage/usb2"
 #define USB2_MNT "/mnt/media_rw/usb2"
 #define LOCKED_ID "usb-handler"
-#define MONITOR_ID "nemesis.update-monitor"
+#define LEGACY_MONITOR_ID "nemesis.update-monitor"
 /* Holds the boot_id of the boot that already announced Android up. */
 #define ANDROID_UP_MARK NEMESIS_ROOT "/android-up"
 #define ANDROID_UP_SEC 5

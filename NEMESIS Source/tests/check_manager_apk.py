@@ -50,10 +50,10 @@ def main() -> None:
         text=True,
         errors="replace",
     )
-    if "(type 0x10)0x1a" not in dump:
-        fail("Manager versionCode is not 26:\n" + dump[:800])
-    if 'versionName(0x0101021c)="1.16.9"' not in dump and '="1.16.9"' not in dump:
-        fail("Manager versionName is not 1.16.9:\n" + dump[:800])
+    if "(type 0x10)0x1b" not in dump:
+        fail("Manager versionCode is not 27:\n" + dump[:800])
+    if 'versionName(0x0101021c)="1.16.9.1"' not in dump and '="1.16.9.1"' not in dump:
+        fail("Manager versionName is not 1.16.9.1:\n" + dump[:800])
     if "SetupReceiver" not in dump or "mobis.intent.action.SHORTCUT_SETUP" not in dump:
         fail("AndroidManifest missing SETUP shortcut receiver")
     if "mobis.intent.action.SHORTCUT_MODE" not in dump:
@@ -97,7 +97,9 @@ def main() -> None:
         fail("activity_main missing ListView id list")
     if "com.nemesis.manager.IconPager" not in tree:
         fail("activity_main missing the icon pager")
-    for perm in ("android.permission.INTERNET", "android.permission.GET_TASKS"):
+    if "android.permission.INTERNET" in dump:
+        fail("USB-only Manager must not request INTERNET")
+    for perm in ("android.permission.GET_TASKS",):
         if perm not in dump:
             fail(f"AndroidManifest missing {perm}")
     for comp in ("StoreActivity", "SettingsActivity", "AppsActivity", "UpdateService", "EventReceiver"):
@@ -155,7 +157,7 @@ def main() -> None:
         fail("popup card is full height")
     if "@drawable/co_bg\"" in dlg:
         fail("popup card uses the full-screen background bitmap")
-    print("OK: Manager APK DEX 035, all Java classes present, no Application, versionCode 26")
+    print("OK: Manager APK DEX 035, all Java classes present, no Application, versionCode 27")
 
 
 if __name__ == "__main__":

@@ -28,8 +28,6 @@ final class StoreList {
         boolean legacy;
         String detailedDesc = "";
         int compat = UNKNOWN;
-        String url = "";
-        String sha256 = "";
         String depends = "";
         /** Set for a zip on the stick; such a row needs no download. */
         String localZip = "";

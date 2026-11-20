@@ -1,4 +1,14 @@
-# NEMESIS
+# NEMESIS — USB-only fork
+
+This fork builds **1.16.9.1 USB-only**, based on upstream 1.16.9. The Manager
+has no internet permission or online client: no background requests, metadata
+requests, online store or network downloads. Install packages, dependencies and
+updates from USB. See [builds and the exact network-policy scope](BUILDING.md).
+This does not disable OEM telematics or constrain independently installed mods.
+
+The material below retains upstream project attribution and hardware guidance.
+Use this fork’s Actions artifacts for the USB-only build; upstream release assets
+retain upstream networking behavior.
 
 Own your car, to its fullest.
 
@@ -42,7 +52,7 @@ fork, follow [Building with GitHub Actions](BUILDING.md). Each successful run
 provides `nemesis-usb-update-package.7z`, `ota_package.tar`, the core update ZIP,
 checksums, and build metadata. Nemesis binaries are compiled from source; the
 full USB package also preserves navigation binaries and signed supporting files
-from a checksum-pinned upstream release. Network behavior remains unchanged.
+from a checksum-pinned upstream release. The Manager and built-in services use the USB-only policy described above.
 
 | Step | Guidance |
 | ---- | -------- |

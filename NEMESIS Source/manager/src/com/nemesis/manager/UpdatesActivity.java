@@ -13,7 +13,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Installed packages the Package Store has a newer version of, from either tab. */
+/** Installed packages with a newer version available on the mounted USB drive. */
 public class UpdatesActivity extends Activity {
     private List<StoreList.Entry> rows = new ArrayList<StoreList.Entry>();
     private int gen;

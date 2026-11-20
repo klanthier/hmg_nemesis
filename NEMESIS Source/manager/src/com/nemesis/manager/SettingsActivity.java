@@ -66,8 +66,6 @@ public class SettingsActivity extends Activity {
                     Trigger.label(this) + ". " + getString(R.string.trigger_hint), "trigger", false));
             rows.add(new TwoLineAdapter.Row(getString(R.string.auto_launch),
                     getString(R.string.auto_launch_sum), "auto", false));
-            rows.add(new TwoLineAdapter.Row(getString(R.string.use_telematics),
-                    getString(R.string.use_telematics_sum), "telematics", false));
             rows.add(new TwoLineAdapter.Row(getString(R.string.block_ota),
                     getString(R.string.block_ota_sum), "ota", false));
             rows.add(new TwoLineAdapter.Row(getString(R.string.disable_selinux),
@@ -90,11 +88,10 @@ public class SettingsActivity extends Activity {
             lv.setAdapter(new TwoLineAdapter(this, rows));
         } else {
             ArrayList<String> checked = new ArrayList<String>();
-            if (Portal.useTelematics(this)) checked.add("telematics");
             if (otaBlocked) checked.add("ota");
             if (selinuxOff) checked.add("selinux");
             lv.setAdapter(new CheckAdapter(this, rows, checked,
-                    java.util.Arrays.asList("telematics", "ota", "selinux")));
+                    java.util.Arrays.asList("ota", "selinux")));
         }
         lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> p, View v, int pos, long id) {
@@ -119,16 +116,6 @@ public class SettingsActivity extends Activity {
             startActivity(i);
         } else if ("auto".equals(key)) {
             startActivity(new Intent(this, AppsActivity.class));
-        } else if ("telematics".equals(key)) {
-            if (Portal.useTelematics(this)) {
-                Portal.setUseTelematics(this, false);
-                bindList();
-            } else {
-                // Turning it on risks the vehicle's modem; DialogActivity sets it on Yes.
-                Intent i = new Intent(this, DialogActivity.class);
-                i.putExtra("nemesis_mode", "confirm_modem");
-                startActivity(i);
-            }
         } else if ("ota".equals(key)) {
             if (otaBlocked) runToggle("ota-block", "off");
             else startConfirm("confirm_ota_block");

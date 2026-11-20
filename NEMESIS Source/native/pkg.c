@@ -1148,40 +1148,6 @@ static const char *USB_HANDLER_SH =
     "export PATH=/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin\n"
     "exec /system/xbin/nemesis usb-handler\n";
 
-static const char *MONITOR_META =
-    "[nemesis]\n"
-    "version=1.1\n"
-    "id=" MONITOR_ID "\n"
-    "name=Update Monitor\n"
-    "type=service\n"
-    "package-version=" NEMESIS_VERSION "\n"
-    "short-desc=\"Asks the Manager to check for NEMESIS updates.\"\n"
-    "os=any\n"
-    "models=any\n"
-    "\n"
-    "[service.0]\n"
-    "name=update-monitor\n"
-    "kind=sh\n"
-    "path=svc/update-monitor.sh\n"
-    "uid=root\n"
-    "mode=restart\n";
-
-/* The Manager decides whether a check is due. Short sleeps, so a killed
- * instance leaves no long-lived sleep behind. */
-static const char *MONITOR_SH =
-    "#!/system/bin/sh\n"
-    "export PATH=/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin\n"
-    "while true; do\n"
-    "    if [ \"$(getprop sys.boot_completed)\" = \"1\" ]; then\n"
-    "        am broadcast -f 32 -a com.nemesis.manager.UPDATE_TICK -n " MANAGER_EVENTS " >/dev/null 2>&1\n"
-    "    fi\n"
-    "    n=0\n"
-    "    while [ $n -lt 60 ]; do\n"
-    "        sleep 60\n"
-    "        n=$((n + 1))\n"
-    "    done\n"
-    "done\n";
-
 static void seed_core(const char *id, const char *name, const char *svc,
                       const char *meta_text, const char *script) {
     char root[MAX_PATH], sh[MAX_PATH], meta[MAX_PATH], svcdir[MAX_PATH], q[MAX_PATH];
@@ -1212,10 +1178,33 @@ static void seed_core(const char *id, const char *name, const char *svc,
     unlink(failp);
 }
 
+/* Retire the online monitor when upgrading an existing installation. Do not
+ * execute its uninstall hooks: only remove this known built-in service. */
+static void retire_online_monitor(void) {
+    svc_rec *list = NULL;
+    int n = 0, i, registered = 0;
+    char root[MAX_PATH];
+    const char *prefix = LEGACY_MONITOR_ID "/";
+    snprintf(root, sizeof(root), "%s/%s", NEMESIS_APPS, LEGACY_MONITOR_ID);
+    svc_list_load(&list, &n);
+    for (i = 0; i < n; i++) {
+        if (!strncmp(list[i].qname, prefix, strlen(prefix))) registered = 1;
+    }
+    free(list);
+    if (!registered && pkg_find(LEGACY_MONITOR_ID, NULL) != 0 && !path_exists(root)) return;
+    stop_pkg_services(LEGACY_MONITOR_ID);
+    if (svc_remove_prefix(LEGACY_MONITOR_ID) != 0 || pkg_remove(LEGACY_MONITOR_ID) != 0) {
+        log_msg("USB-only: could not retire online monitor; will retry");
+        return;
+    }
+    rm_rf(root);
+    log_msg("USB-only: retired online update monitor");
+}
+
 int seed_core_packages(void) {
     ensure_dirs();
+    retire_online_monitor();
     seed_core(LOCKED_ID, "USB Handler", "usb-handler", USB_HANDLER_META, USB_HANDLER_SH);
-    seed_core(MONITOR_ID, "Update Monitor", "update-monitor", MONITOR_META, MONITOR_SH);
     return 0;
 }
 

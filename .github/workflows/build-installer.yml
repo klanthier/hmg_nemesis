@@ -1,4 +1,4 @@
-name: Build Nemesis installation packages
+name: Build USB-only Nemesis installation packages
 
 on:
   workflow_dispatch:
@@ -82,9 +82,12 @@ jobs:
           make -C "NEMESIS Source" test-meta
           python3 "NEMESIS Source/tests/setup_press_test.py"
           python3 "NEMESIS Source/tests/store_logic_test.py"
+          python3 "NEMESIS Source/tests/usb_paths_test.py"
           python3 "NEMESIS Source/tests/test_check_built_tar.py"
           python3 "NEMESIS Source/tests/test_check_built_update.py"
           python3 "NEMESIS Source/tests/test_check_built_usb.py"
+          python3 "NEMESIS Source/tests/test_check_offline_build.py"
+          python3 "NEMESIS Source/tests/check_offline_build.py" --source-only
 
       - name: Compile and package fresh binaries
         shell: bash
@@ -106,6 +109,7 @@ jobs:
           python3 "NEMESIS Source/tests/check_built_tar.py"
           python3 "NEMESIS Source/tests/check_built_update.py"
           python3 "NEMESIS Source/tests/check_built_installer.py"
+          python3 "NEMESIS Source/tests/check_offline_build.py"
           python3 "NEMESIS Source/tests/check_built_usb.py" --template "$NEMESIS_USB_INPUT_DIR/template.tar"
           git diff --exit-code HEAD
 
@@ -128,7 +132,7 @@ jobs:
       - name: Upload the newly built installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: nemesis-installer-${{ github.sha }}
+          name: nemesis-usb-only-${{ github.sha }}
           path: |
             dist/ota_package.tar
             dist/nemesis-usb-update-package.7z
@@ -156,7 +160,7 @@ jobs:
       - name: Download this run's installer
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: nemesis-installer-${{ github.sha }}
+          name: nemesis-usb-only-${{ github.sha }}
           path: dist
 
       - name: Check the transferred files

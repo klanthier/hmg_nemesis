@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nemesis.manager"
-    android:versionCode="26"
-    android:versionName="1.16.9">
+    android:versionCode="27"
+    android:versionName="1.16.9.1">
     <uses-sdk android:minSdkVersion="19" android:targetSdkVersion="19" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- HMG's ActivityManager checks GET_TASKS in finishActivity(). -->
     <uses-permission android:name="android.permission.GET_TASKS" />
@@ -66,7 +64,7 @@
         <service
             android:name=".UpdateService"
             android:exported="false" />
-        <!-- Explicit broadcasts from the watchdog and the update monitor, and the head unit's screen state. -->
+        <!-- Local startup and screen-state broadcasts. -->
         <receiver
             android:name=".EventReceiver"
             android:exported="true">

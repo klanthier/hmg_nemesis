@@ -6,13 +6,9 @@ import java.util.List;
 /** Host driver for UpdateRule and StoreList. Not packaged into the Manager APK. */
 public class StoreLogicRun {
     private static int failed;
-    private static final long DAY = UpdateRule.PERIOD_MS;
-    private static final long NOW = 1790000000000L;
 
     public static void main(String[] args) {
         versions();
-        dueWithGoodClock();
-        dueWithBadClock();
         listParsing();
         unsafePathsDropped();
         wrongTypeGivesNothing();
@@ -40,24 +36,6 @@ public class StoreLogicRun {
         check(StoreList.hiddenCount(java.util.Collections.singletonList(old)) == 0, "legacy stays listed");
         old.compat = StoreList.NONE;
         check(StoreList.shade(old) == StoreList.NONE, "legacy keeps red");
-        check(UpdateRule.networkAllowed(false, 1, null), "Wi-Fi by default");
-        check(UpdateRule.networkAllowed(false, 7, "bnep0"), "Bluetooth hotspot by default");
-        check(UpdateRule.networkAllowed(false, 9, "usb0"), "USB hotspot by default");
-        check(UpdateRule.networkAllowed(false, -1, "rndis0"), "USB tether with no active type");
-        check(UpdateRule.networkAllowed(false, 0, "usb0"), "USB hotspot reported as mobile");
-        check(UpdateRule.networkAllowed(false, 0, "eth0"), "USB Ethernet hotspot reported as mobile");
-        check(UpdateRule.networkAllowed(false, 5, "wlan0"), "the route decides, not hipri");
-        check(!UpdateRule.networkAllowed(false, 1, "rmnet0"), "SIM route is off even with Wi-Fi active");
-        check(!UpdateRule.networkAllowed(false, -1, "rmnet0"), "SIM interface is off");
-        check(!UpdateRule.networkAllowed(false, 0, "odd0"), "unknown name on mobile is off");
-        check(UpdateRule.networkAllowed(false, 1, "odd0"), "unknown name on Wi-Fi is on");
-        check(!UpdateRule.networkAllowed(false, -1, null), "no route is off");
-        check(UpdateRule.networkAllowed(true, 0, "rmnet0"), "Use built-in modem allows the SIM");
-        String routes = "Iface\tDestination\tGateway\nwlan0\t0001A8C0\t00000000\nrmnet0\t00000000\t0101A8C0\n";
-        check("rmnet0".equals(UpdateRule.defaultRouteIface(routes)), "default route interface");
-        check(UpdateRule.defaultRouteIface("Iface\tDestination\nwlan0\t0001A8C0\n") == null, "no default route");
-        String metrics = "rmnet0\t00000000\t01\t0003\t0\t0\t100\t00000000\nusb0\t00000000\t01\t0003\t0\t0\t5\t00000000\n";
-        check("usb0".equals(UpdateRule.defaultRouteIface(metrics)), "lowest metric default route");
         check(UpdateRule.specMatch("any", "") && UpdateRule.specMatch("", null), "any spec");
         check(UpdateRule.specMatch(">=1.2", "1.10") && !UpdateRule.specMatch(">=1.2", "1.1"), "at least");
         check(UpdateRule.specMatch("<=2.0", "2") && !UpdateRule.specMatch("<=2.0", "2.1"), "at most");
@@ -68,22 +46,7 @@ public class StoreLogicRun {
         check(UpdateRule.compare("1.9", "1.10") < 0, "numeric, not text");
         check(UpdateRule.compare("1.16", "1.16.0") == 0, "missing part is zero");
         check(UpdateRule.compare(null, "") == 0, "null and empty are equal");
-    }
-
-    private static void dueWithGoodClock() {
-        check(UpdateRule.due(NOW, 0, 5, 0), "never checked is due");
-        check(!UpdateRule.due(NOW, NOW - DAY + 1, 5, 0), "under a day is not due");
-        check(UpdateRule.due(NOW, NOW - DAY, 5, 0), "exactly a day is due");
-        check(UpdateRule.due(NOW, NOW + 1000, 5, 0), "last check in the future is due");
-    }
-
-    private static void dueWithBadClock() {
-        long bad = UpdateRule.CLOCK_SANE_MS - 1;
-        check(!UpdateRule.clockSane(bad), "2015 clock is not sane");
-        check(UpdateRule.due(bad, NOW, 100, 0), "no elapsed mark is due");
-        check(!UpdateRule.due(bad, NOW, 100 + DAY - 1, 100), "elapsed under a day is not due");
-        check(UpdateRule.due(bad, NOW, 100 + DAY, 100), "elapsed of a day is due");
-        check(UpdateRule.due(bad, NOW, 50, 100), "elapsed went back: new boot, due");
+        check(UpdateRule.compare("1.16.9.1", "1.16.9") > 0, "USB-only fork upgrades upstream 1.16.9");
     }
 
     private static final String LIST = "[nemesis]\ntype=list\n"

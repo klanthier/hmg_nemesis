@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NEMESIS</string>
+    <string name="app_name">NEMESIS USB-only</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="ok">OK</string>
@@ -16,37 +16,28 @@
     <string name="wipe">Wipe NEMESIS</string>
     <string name="wipe_sum">Remove NEMESIS and all packages</string>
     <string name="settings">Settings</string>
-    <string name="manager_name">NEMESIS Manager</string>
+    <string name="manager_name">NEMESIS Manager USB-only</string>
     <string name="auto_launch">Auto-launch</string>
     <string name="auto_launch_sum">Apps opened when Android starts and when the screen comes back on</string>
-    <string name="use_telematics">Use built-in modem for network services</string>
-    <string name="use_telematics_sum">By default NEMESIS does not use internet connection for its network services from built-in modem to prevent possible connectivity restrictions</string>
-    <string name="confirm_modem">Are you sure you want to enable this feature? This may cause your vehicle\'s modem to be banned by the manufacturer as data usage is monitored.</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="checking_updates">Checking for updates for NEMESIS</string>
-    <string name="downloading">Downloading…</string>
-    <string name="download_bad">The download did not match its checksum and was deleted.</string>
-    <string name="download_fail">The download failed. Connect to Wi-Fi or a hotspot, or turn on Use built-in modem for network services in Settings.</string>
-    <string name="update_ready">A new update for NEMESIS is ready to be installed. Update now?</string>
-    <string name="update_offline">No local NEMESIS update package was found, and there was a problem connecting to xwtk.Portal. Connect to Wi-Fi or a hotspot, or turn on Use built-in modem for network services in Settings.</string>
+    <string name="check_updates">Check USB for updates</string>
+    <string name="checking_updates">Checking USB for a NEMESIS update</string>
+    <string name="update_offline">No NEMESIS update was found on USB. Copy the update ZIP and its NEMESIS.data file to the root of the USB drive, then try again.</string>
     <string name="update_rebooting">NEMESIS was updated. The head unit is restarting.</string>
-    <string name="store">Package Store</string>
-    <string name="store_offline">There was a problem connecting to xwtk.Portal. The online Store is not available. Connect to Wi-Fi or a hotspot, or turn on Use built-in modem for network services in Settings.</string>
+    <string name="store">USB packages</string>
     <string name="tab_usb">USB</string>
-    <string name="tab_online">Online</string>
     <string name="search_hint">Search</string>
     <string name="sort_date">Date</string>
     <string name="sort_name">Name</string>
     <string name="show_all">Show all (%d more)</string>
     <string name="show_full_only">Compatible only</string>
-    <string name="empty_store">No packages to show.</string>
+    <string name="empty_store">No matching packages on this USB drive.</string>
     <string name="install">Install</string>
     <string name="installed_tag">installed</string>
     <string name="wifi">WiFi</string>
     <string name="package_id">Package ID: %s</string>
     <string name="version_line">Version: %s</string>
     <string name="loading_details">Loading details…</string>
-    <string name="details_failed">Could not load the details. Check the connection and press Retry.</string>
+    <string name="details_failed">Could not read the package. Check the USB drive and press Retry.</string>
     <string name="retry">Retry</string>
     <string name="installed_version">Installed: %s</string>
     <string name="published_on">Published: %s</string>
@@ -103,20 +94,19 @@
     <string name="confirm_risk">This package is not marked as compatible by its developer. Installing it may stop the head unit from working. Continue?</string>
     <string name="confirm_uninstall">Uninstall \"%s\"?</string>
     <string name="confirm_stop">Stop \"%s\"?</string>
-    <string name="title">NEMESIS</string>
-    <string name="credit">By Gor Mirzoyan (xwtk.cloud)</string>
+    <string name="title">NEMESIS USB-only</string>
+    <string name="credit">Based on NEMESIS by Gor Mirzoyan</string>
     <string name="cancel">Cancel</string>
     <string name="view">View</string>
     <string name="not_now">Not now</string>
-    <string name="downloading_named">Downloading \"%s\"…</string>
     <string name="installing_named">Installing \"%s\"…</string>
     <string name="updates">Updates</string>
-    <string name="updates_empty">No updates available.</string>
+    <string name="updates_empty">No newer packages found on the USB drive.</string>
     <string name="pkg_updates_one">Updates are ready to be installed for 1 package.</string>
     <string name="pkg_updates_many">Updates are ready to be installed for %d packages.</string>
     <string name="confirm_deps" formatted="false">\"%n\" needs these packages:%s\n\nInstall them, then \"%n\"?</string>
     <string name="deps_update_from"> (update from %s)</string>
-    <string name="deps_unmet" formatted="false">\"%n\" needs these packages:%s\n\nInstall or update them from Package Store or a USB drive, then try again.</string>
+    <string name="deps_unmet" formatted="false">\"%n\" needs these packages:%s\n\nInstall them from USB or add them to the USB package list, then try again.</string>
     <string name="install_conflict" formatted="false">\"%n\" is incompatible with these installed packages. Uninstall them first:%s</string>
     <string name="update_blocked" formatted="false">This version of \"%n\" does not fit other installed packages that need it. Update or uninstall them first:%s</string>
     <string name="block_ota">Disable OTA system updates</string>
@@ -137,4 +127,6 @@
     <string name="wifi_warn">Opening WiFi menu will disable wireless projection related features (if applicable). Reboot to restore functionality. Continue?</string>
     <string name="log_nemesis">NEMESIS</string>
     <string name="log_logcat">Logcat</string>
+    <string name="usb_only">This build uses USB only. Put the package and all required dependencies on the connected USB drive.</string>
+    <string name="empty_store_usb">Insert a USB drive containing a NEMESIS.data package list and its package ZIP files.</string>
 </resources>

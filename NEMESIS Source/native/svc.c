@@ -89,8 +89,7 @@ void svc_forget(const char *qname) {
 }
 
 static int svc_locked(const char *qname) {
-    return qname && (!strncmp(qname, LOCKED_ID "/", (int)strlen(LOCKED_ID) + 1) ||
-                     !strncmp(qname, MONITOR_ID "/", (int)strlen(MONITOR_ID) + 1));
+    return qname && !strncmp(qname, LOCKED_ID "/", (int)strlen(LOCKED_ID) + 1);
 }
 
 static int svc_proc_ok(const svc_rec *s) {
