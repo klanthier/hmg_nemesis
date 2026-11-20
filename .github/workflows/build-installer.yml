@@ -1,4 +1,4 @@
-name: Build installer from source
+name: Build Nemesis installation packages
 
 on:
   workflow_dispatch:
@@ -24,6 +24,7 @@ jobs:
       ANDROID_PLATFORM: 'android-30'
       SDK_TOOLS_BUILD: '13114758'
       SDK_TOOLS_SHA256: '7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee'
+      USB_TEMPLATE_URL: 'https://github.com/xwtk/hmg_nemesis/releases/download/v1.16.9/nemesis-usb-update-package.7z'
     steps:
       - name: Check out the source commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -60,6 +61,22 @@ jobs:
             "ndk;$NDK_VERSION"
           echo "$NEMESIS_ANDROID_SDK/build-tools/$BUILD_TOOLS_VERSION" >> "$GITHUB_PATH"
 
+      - name: Prepare the checksum-pinned full USB template
+        shell: bash
+        run: |
+          if ! command -v 7z >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y p7zip-full
+          fi
+          NEMESIS_USB_INPUT_DIR="$RUNNER_TEMP/nemesis-usb-input"
+          mkdir -p "$NEMESIS_USB_INPUT_DIR"
+          echo "NEMESIS_USB_INPUT_DIR=$NEMESIS_USB_INPUT_DIR" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 "$USB_TEMPLATE_URL" \
+            --output "$NEMESIS_USB_INPUT_DIR/upstream-usb.7z"
+          python3 "NEMESIS Source/tools/prepare_usb_template.py" \
+            --archive "$NEMESIS_USB_INPUT_DIR/upstream-usb.7z" \
+            --output-dir "$NEMESIS_USB_INPUT_DIR"
+
       - name: Run host tests
         run: |
           make -C "NEMESIS Source" test-meta
@@ -67,25 +84,43 @@ jobs:
           python3 "NEMESIS Source/tests/store_logic_test.py"
           python3 "NEMESIS Source/tests/test_check_built_tar.py"
           python3 "NEMESIS Source/tests/test_check_built_update.py"
+          python3 "NEMESIS Source/tests/test_check_built_usb.py"
 
       - name: Compile and package fresh binaries
         shell: bash
         run: |
           make -C "NEMESIS Source" clean
-          make -C "USB package path/installer" clean
+          make -C "USB package path" clean
           rm -f "NEMESIS Source/manager/nemesis.keystore" "USB package path/installer/nemesis.keystore"
-          make -C "USB OTA troubleShooter path" \
+          make -C "USB package path" \
+            TEMPLATE="$NEMESIS_USB_INPUT_DIR/template.tar" \
             NDK="$NEMESIS_ANDROID_SDK/ndk/$NDK_VERSION" \
             ANDROID_JAR="$NEMESIS_ANDROID_SDK/platforms/$ANDROID_PLATFORM/android.jar"
-          make -C "USB package path/installer" \
-            ANDROID_JAR="$NEMESIS_ANDROID_SDK/platforms/$ANDROID_PLATFORM/android.jar"
+          # Reuse the exact Manager bytes from the USB build; invoking another
+          # phony manager Make target would re-sign the APK after packaging it.
+          python3 "USB OTA troubleShooter path/make_troubleshooter_tar.py"
+          sh "USB OTA troubleShooter path/verify_tars.sh"
           mkdir -p "NEMESIS Source/out"
           version=$(sed -n 's/^#define NEMESIS_VERSION "\([0-9.]*\)"/\1/p' "NEMESIS Source/native/nemesis.h")
           python3 "NEMESIS Source/tools/make_update_zip.py" -o "NEMESIS Source/out/nemesis-update-$version.zip"
           python3 "NEMESIS Source/tests/check_built_tar.py"
           python3 "NEMESIS Source/tests/check_built_update.py"
           python3 "NEMESIS Source/tests/check_built_installer.py"
+          python3 "NEMESIS Source/tests/check_built_usb.py" --template "$NEMESIS_USB_INPUT_DIR/template.tar"
           git diff --exit-code HEAD
+
+      - name: Package and verify the complete USB installation
+        shell: bash
+        run: |
+          archive="$GITHUB_WORKSPACE/NEMESIS Source/out/nemesis-usb-update-package.7z"
+          rm -f "$archive"
+          (cd "USB package path/out" && 7z a -t7z -mx=9 "$archive" ./*)
+          7z t "$archive"
+          mkdir -p "$RUNNER_TEMP/nemesis-usb-roundtrip"
+          7z x -y "$archive" "-o$RUNNER_TEMP/nemesis-usb-roundtrip"
+          python3 "NEMESIS Source/tests/check_built_usb.py" \
+            --template "$NEMESIS_USB_INPUT_DIR/template.tar" \
+            --out "$RUNNER_TEMP/nemesis-usb-roundtrip"
 
       - name: Record the source, toolchain, and artifact hashes
         run: python3 "NEMESIS Source/tools/write_build_info.py"
@@ -96,6 +131,8 @@ jobs:
           name: nemesis-installer-${{ github.sha }}
           path: |
             dist/ota_package.tar
+            dist/nemesis-usb-update-package.7z
+            dist/usb-template-info.json
             dist/nemesis-update-*.zip
             dist/NEMESIS.data
             dist/NEMESIS-Installer.apk
@@ -132,6 +169,8 @@ jobs:
         with:
           subject-path: |
             dist/ota_package.tar
+            dist/nemesis-usb-update-package.7z
+            dist/usb-template-info.json
             dist/nemesis-update-*.zip
             dist/NEMESIS.data
             dist/NEMESIS-Installer.apk

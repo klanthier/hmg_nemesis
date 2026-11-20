@@ -37,13 +37,12 @@ Because of this, we now have 2 methods available for installation, the first met
 
 ## **Quick Installation Guidance (Option 1)**
 
-To build an installer from a selected source commit in your own fork, follow
-[Building with GitHub Actions](BUILDING.md). Each successful run provides a fresh
-`ota_package.tar`, checksums, and build metadata. Building from source does not
-change network behavior. Upstream now documents a second entrypoint for recent
-S5W_M units; vehicle compatibility still requires verification. Our build does not
-produce that complete USB entrypoint bundle: its template carries opaque navigation
-libraries outside the published source. See BUILDING.md for the exact outputs.
+To build the full USB installation package and the original OTA installer in your
+fork, follow [Building with GitHub Actions](BUILDING.md). Each successful run
+provides `nemesis-usb-update-package.7z`, `ota_package.tar`, the core update ZIP,
+checksums, and build metadata. Nemesis binaries are compiled from source; the
+full USB package also preserves navigation binaries and signed supporting files
+from a checksum-pinned upstream release. Network behavior remains unchanged.
 
 | Step | Guidance |
 | ---- | -------- |

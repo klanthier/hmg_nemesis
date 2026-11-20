@@ -32,6 +32,8 @@ def main() -> None:
                         (source / "native/nemesis.h").read_text()).group(1)
     outputs = {
         "ota_package.tar": installer,
+        "nemesis-usb-update-package.7z": source / "out/nemesis-usb-update-package.7z",
+        "usb-template-info.json": Path(os.environ["NEMESIS_USB_INPUT_DIR"]) / "usb-template-info.json",
         f"nemesis-update-{version}.zip": source / f"out/nemesis-update-{version}.zip",
         "NEMESIS.data": source / "out/NEMESIS.data",
         "NEMESIS-Installer.apk": ROOT / "USB package path/installer/NEMESIS-Installer.apk",
@@ -60,9 +62,10 @@ def main() -> None:
         "runner_image_version": os.environ.get("ImageVersion", ""),
         "version": version,
         "upstream_commit": "357a1440df3bd35f06393b96280a725f3efac226",
-        "build_targets": ["USB OTA troubleShooter path", "USB package path/installer", "core update ZIP"],
-        "complete_usb_entrypoint_built": False,
-        "usb_entrypoint_exclusion": "Requires external template containing precompiled navigation libraries; no upstream binaries used by this workflow.",
+        "build_targets": ["USB OTA troubleShooter path", "USB package path", "core update ZIP"],
+        "complete_usb_entrypoint_built": True,
+        "usb_template": json.loads(outputs["usb-template-info.json"].read_text()),
+        "build_input_policy": "Native NEMESIS, Manager and Installer APKs compiled from source; navigation template binaries and signed TarList inputs preserved from checksum-pinned upstream release.",
         "toolchain": {
             "java_requested": os.environ["JAVA_VERSION"],
             "java": command("java", "-version"),
@@ -76,6 +79,7 @@ def main() -> None:
             "d8": command("d8", "--version"),
             "python": command("python3", "--version"),
             "make": command("make", "--version"),
+            "seven_zip": "\n".join(command("7z", "i").splitlines()[:4]),
         },
         "sha256": {
             **{name: digest(path) for name, path in outputs.items()},
@@ -103,9 +107,9 @@ def main() -> None:
         f"Built installer from `{commit}`.\n\n"
         f"SHA-256: `{info['sha256']['ota_package.tar']}`\n\n"
         "Download `nemesis-installer-" + commit + "` from this run's artifacts. "
-        "It contains the OTA tar, core update ZIP/descriptor, standalone Installer APK, checksums, and build record. "
-        "No upstream prebuilt executable was used. The complete USB entrypoint bundle is NOT built; "
-        "its external template carries opaque navigation libraries. Runtime/network behavior is unchanged. "
+        "It contains the complete USB installation .7z, OTA tar, core update ZIP/descriptor, Installer APK, checksums, and build record. "
+        "The full USB bundle includes checksum-pinned upstream navigation binaries and signed support files; "
+        "Nemesis binaries are freshly compiled. Runtime/network behavior is unchanged. "
         "No vehicle installation or compatibility test was performed.\n"
     )
     with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as out:
