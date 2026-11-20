@@ -1,4 +1,10 @@
-# NEMESIS
+# NEMESIS — minimal USB-only fork
+
+This fork disables the Manager's server requests, online store and automatic
+checks while preserving the existing USB installation paths. Use the artifacts
+from this fork's [GitHub Actions](https://github.com/klanthier/hmg_nemesis/actions/workflows/build-installer.yml),
+not upstream release downloads. See [BUILDING.md](BUILDING.md) for scope and USB preparation.
+The upstream project information and history follow below.
 
 Own your car, to its fullest.
 
@@ -42,11 +48,11 @@ fork, follow [Building with GitHub Actions](BUILDING.md). Each successful run
 provides `nemesis-usb-update-package.7z`, `ota_package.tar`, the core update ZIP,
 checksums, and build metadata. Nemesis binaries are compiled from source; the
 full USB package also preserves navigation binaries and signed supporting files
-from a checksum-pinned upstream release. Network behavior remains unchanged.
+from a checksum-pinned upstream release. The Manager uses the USB-only policy described above.
 
 | Step | Guidance |
 | ---- | -------- |
-| 1 | Download the `ota_package.tar` asset from the [latest release](https://github.com/xwtk/hmg_nemesis/releases/latest) onto your computer. |
+| 1 | Download the `ota_package.tar` asset from the [fork build artifacts](https://github.com/klanthier/hmg_nemesis/actions/workflows/build-installer.yml) onto your computer. |
 | 2 | Prepare an exFAT or FAT32 formatted blank USB drive. |
 | 3 | Copy the downloaded tar file onto the USB, do not extract or repack the archive file. |
 | 4 | Insert into the car's HU USB port, messages such as "No Supported Files" are expected. |
@@ -58,7 +64,7 @@ from a checksum-pinned upstream release. Network behavior remains unchanged.
 
 | Step | Guidance |
 | ---- | -------- |
-| 1 | Download the `nemesis-usb-update-package.7z` asset from the [latest release](https://github.com/xwtk/hmg_nemesis/releases/latest) onto your computer. |
+| 1 | Download the `nemesis-usb-update-package.7z` asset from the [fork build artifacts](https://github.com/klanthier/hmg_nemesis/actions/workflows/build-installer.yml) onto your computer. |
 | 2 | Prepare an exFAT or FAT32 formatted blank USB drive. |
 | 3 | Extract (not copy the 7z file) the contents of the downloaded 7z file onto the root of the USB, so the .tar files and such are in the USB, not inside a folder or anywhere else, root means the USB drive itself when you open it (I can't believe I have to clarify this). |
 | 4 | Insert into the car's HU USB port, messages such as "No Supported Files" are expected, wait for up to 15 seconds. |
@@ -83,13 +89,11 @@ If you have mistakenly closed the installer, NEMESIS Installation Interface will
 
 | **Step** | **Description** |
 |----------|-----------------|
-| 1 | From the [latest release](https://github.com/xwtk/hmg_nemesis/releases/latest), download the `nemesis-update-<version>.zip` asset and the `NEMESIS.data` next to it, then copy both to the root of a blank exFAT or FAT32 USB drive. Do not extract the zip or put them in a folder. |
+| 1 | From the [fork build artifacts](https://github.com/klanthier/hmg_nemesis/actions/workflows/build-installer.yml), download the `nemesis-update-<version>.zip` asset and the `NEMESIS.data` next to it, then copy both to the root of a blank exFAT or FAT32 USB drive. Do not extract the zip or put them in a folder. |
 | 2 | Insert the USB drive into the car's HU USB port with Android running. |
 | 3 | Choose **Yes** when NEMESIS asks to update. The HU restarts when the update is done. |
 
-OR
-
-**Settings → Check for updates** in NEMESIS Manager does the same over the internet, once the update is on the portal. You may additionally get a popup saying new update is ready to be installed, that is the automatic update doing its job.
+**Settings → Check for updates** scans the USB drive and displays USB instructions if no update is found. Online and automatic update checks are disabled.
 
 ## **Changelog**
 

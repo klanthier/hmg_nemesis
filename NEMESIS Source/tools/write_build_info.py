@@ -61,6 +61,8 @@ def main() -> None:
         "runner_image": os.environ.get("ImageOS", ""),
         "runner_image_version": os.environ.get("ImageVersion", ""),
         "version": version,
+        "build_profile": "usb-only-minimal",
+        "network_policy": "Manager has no INTERNET permission; Portal is an offline stub; automatic checks and online controls are disabled. USB installation logic is unchanged. This is not a vehicle-wide network firewall.",
         "upstream_commit": "357a1440df3bd35f06393b96280a725f3efac226",
         "build_targets": ["USB OTA troubleShooter path", "USB package path", "core update ZIP"],
         "complete_usb_entrypoint_built": True,
@@ -109,7 +111,7 @@ def main() -> None:
         "Download `nemesis-installer-" + commit + "` from this run's artifacts. "
         "It contains the complete USB installation .7z, OTA tar, core update ZIP/descriptor, Installer APK, checksums, and build record. "
         "The full USB bundle includes checksum-pinned upstream navigation binaries and signed support files; "
-        "Nemesis binaries are freshly compiled. Runtime/network behavior is unchanged. "
+        "Nemesis binaries are freshly compiled with the minimal USB-only policy. "
         "No vehicle installation or compatibility test was performed.\n"
     )
     with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as out:

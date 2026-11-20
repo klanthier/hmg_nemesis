@@ -1,10 +1,25 @@
 # Building NEMESIS from source
 
 The fork's **Build Nemesis installation packages** GitHub Action builds upstream 1.16.9
-at `357a1440df3bd35f06393b96280a725f3efac226` plus the fork's build tooling.
+at `357a1440df3bd35f06393b96280a725f3efac226` plus the fork's build tooling and the minimal USB-only changes below.
 It compiles the native executable, Manager APK and Installer APK on a clean
 GitHub-hosted Ubuntu runner. The complete USB package also preserves navigation
 binaries and signed supporting files from a checksum-pinned upstream release.
+
+## Minimal USB-only policy
+
+Version **1.16.9.2** replaces the Manager's `Portal` network client with an offline
+stub and removes its `INTERNET` permission. Automatic checks, online store access,
+and the modem opt-in are disabled. The existing USB installation, dependency,
+and update paths are preserved; all required packages must be supplied on USB.
+**Settings → Check for updates** keeps its existing USB scan and shows USB
+instructions when no update is present, instead of contacting the server. Previously downloaded online
+updates are not offered for installation.
+
+Native service supervision, the installer, navigation inputs, Wi-Fi controls,
+and package execution are unchanged. The original update monitor may still send
+an hourly local broadcast, which the Manager ignores. This does not disable the
+vehicle modem or restrict OEM services, navigation binaries, or installed mods.
 
 ## Outputs and their intended use
 
@@ -13,7 +28,7 @@ binaries and signed supporting files from a checksum-pinned upstream release.
 | `nemesis-usb-update-package.7z` | Complete new USB installation bundle: extract to USB root, leaving its 144 inner TARs intact. |
 | `usb-template-info.json` | Pinned upstream input hashes and an inventory of preserved template contents. |
 | `ota_package.tar` | Original DSP/OTA installation method; requires that entrypoint on the head unit. Copy intact, do not extract. |
-| `nemesis-update-1.16.9.zip` and `NEMESIS.data` | Update an existing NEMESIS 1.16+ installation; put both files at USB root. |
+| `nemesis-update-1.16.9.2.zip` and `NEMESIS.data` | Update an existing NEMESIS 1.16+ installation; put both files at USB root. |
 | `NEMESIS-Installer.apk` | Source-built installer application; also embedded in every TAR in the full USB bundle. Not installed separately for the USB method. |
 | `build-info.json`, `SHA256SUMS` | Source/toolchain information and output hashes. |
 
@@ -54,8 +69,8 @@ head unit with recent firmware (250818 or newer is documented as confirmed).
 The earlier blanket Ioniq 6 exclusion was removed. A `260903` suffix alone does
 not identify the platform or establish compatibility; check the complete SW
 identifier. Neither this build nor its tests demonstrate installation on a car.
-Building from source does not disable LTE, remove the package store, or alter
-upstream runtime behavior.
+The USB-only policy removes Manager server requests; it does not disable LTE
+for other software on the vehicle.
 
 ## Run and verify
 
@@ -98,7 +113,9 @@ Build Tools 30.0.3, command-line tools build 13114758 with SHA-256 verification,
 and NDK 21.4.7075529 (r21e). Native and APK minimum API remains 19; native is ARMv7.
 Actions are pinned by commit. The source layout contains spaces, so paths are quoted.
 
-CI runs metadata, Setup and Store host tests plus archive-verifier tamper tests.
+CI runs metadata, Setup, Store and offline-policy host tests plus archive-verifier tamper tests.
+Both compiled APKs are checked for internet permission, network API references
+and executable references to author endpoints.
 It cleans both APK build directories, generates fresh local signing keys, builds
 the full USB package, OTA installer and core update, and checks their embedded
 binaries against the freshly compiled files. The shared Manager APK is built once
@@ -113,5 +130,5 @@ change tracked files. No generated installer or Android app is executed.
 Both APKs use fresh per-run signing keys. Builds are not byte-reproducible and
 do not share the upstream APK signing identity. Normal Android replacement of an
 APK signed with another key may fail; installation/upgrade handling needs device
-validation. Only the build infrastructure and packaging verification are changed
-in this fork; review upstream behavior separately.
+validation. Runtime changes are limited to the USB-only policy above; the rest
+of upstream behavior still needs separate review.
