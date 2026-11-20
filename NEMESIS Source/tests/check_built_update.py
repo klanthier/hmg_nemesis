@@ -14,6 +14,7 @@ import stat
 import struct
 import sys
 import zipfile
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -118,7 +119,7 @@ def archive_members(archive_path: Path, sizes: dict[str, int]) -> dict[str, byte
                 require(cursor <= cd_start, "ZIP entry extends past payload area")
             require(cursor == cd_start, "ZIP has hidden entries or data before its directory")
             return {info.filename: archive.read(info) for info in infos}
-    except (zipfile.BadZipFile, RuntimeError, NotImplementedError, UnicodeError) as exc:
+    except (zipfile.BadZipFile, RuntimeError, NotImplementedError, UnicodeError, zlib.error) as exc:
         raise VerificationError(f"invalid ZIP: {exc}") from exc
 
 

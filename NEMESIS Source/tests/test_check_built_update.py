@@ -219,6 +219,14 @@ class BuiltUpdateTests(unittest.TestCase):
         self.archive.write_bytes(raw.replace(original, b"X" + original[1:], 1))
         self.rejects("invalid ZIP")
 
+    def test_invalid_deflate_stream_reports_verification_error(self) -> None:
+        raw = bytearray(self.archive.read_bytes())
+        name_length, extra_length = struct.unpack_from("<HH", raw, 26)
+        offset = 30 + name_length + extra_length
+        raw[offset] = (raw[offset] & 0xf8) | 7  # Reserved DEFLATE block type.
+        self.archive.write_bytes(raw)
+        self.rejects("invalid ZIP")
+
     def test_hidden_prefix_tail_and_truncation(self) -> None:
         original = self.archive.read_bytes()
         for damaged in (b"hidden" + original, original + b"hidden", original[:-1], original[:10]):
