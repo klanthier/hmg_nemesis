@@ -62,24 +62,33 @@ jobs:
 
       - name: Run host tests
         run: |
-          make -C Sources test-meta
-          python3 Sources/tests/setup_press_test.py
-          python3 Sources/tests/store_logic_test.py
-          python3 Sources/tests/test_check_built_tar.py
+          make -C "NEMESIS Source" test-meta
+          python3 "NEMESIS Source/tests/setup_press_test.py"
+          python3 "NEMESIS Source/tests/store_logic_test.py"
+          python3 "NEMESIS Source/tests/test_check_built_tar.py"
+          python3 "NEMESIS Source/tests/test_check_built_update.py"
 
       - name: Compile and package fresh binaries
         shell: bash
         run: |
-          make -C Sources clean
-          rm -f Sources/manager/nemesis.keystore
-          make -C Sources troubleshooter \
+          make -C "NEMESIS Source" clean
+          make -C "USB package path/installer" clean
+          rm -f "NEMESIS Source/manager/nemesis.keystore" "USB package path/installer/nemesis.keystore"
+          make -C "USB OTA troubleShooter path" \
             NDK="$NEMESIS_ANDROID_SDK/ndk/$NDK_VERSION" \
             ANDROID_JAR="$NEMESIS_ANDROID_SDK/platforms/$ANDROID_PLATFORM/android.jar"
-          python3 Sources/tests/check_built_tar.py
+          make -C "USB package path/installer" \
+            ANDROID_JAR="$NEMESIS_ANDROID_SDK/platforms/$ANDROID_PLATFORM/android.jar"
+          mkdir -p "NEMESIS Source/out"
+          version=$(sed -n 's/^#define NEMESIS_VERSION "\([0-9.]*\)"/\1/p' "NEMESIS Source/native/nemesis.h")
+          python3 "NEMESIS Source/tools/make_update_zip.py" -o "NEMESIS Source/out/nemesis-update-$version.zip"
+          python3 "NEMESIS Source/tests/check_built_tar.py"
+          python3 "NEMESIS Source/tests/check_built_update.py"
+          python3 "NEMESIS Source/tests/check_built_installer.py"
           git diff --exit-code HEAD
 
       - name: Record the source, toolchain, and artifact hashes
-        run: python3 Sources/tools/write_build_info.py
+        run: python3 "NEMESIS Source/tools/write_build_info.py"
 
       - name: Upload the newly built installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -87,6 +96,9 @@ jobs:
           name: nemesis-installer-${{ github.sha }}
           path: |
             dist/ota_package.tar
+            dist/nemesis-update-*.zip
+            dist/NEMESIS.data
+            dist/NEMESIS-Installer.apk
             dist/SHA256SUMS
             dist/build-info.json
           if-no-files-found: error
@@ -120,6 +132,9 @@ jobs:
         with:
           subject-path: |
             dist/ota_package.tar
+            dist/nemesis-update-*.zip
+            dist/NEMESIS.data
+            dist/NEMESIS-Installer.apk
             dist/build-info.json
           create-storage-record: false
 

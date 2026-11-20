@@ -19,49 +19,58 @@ You bear complete responsibility for any procedure with your car and its compone
 
 ## Packages
 
-Discover packages to install on your car in the [NEMESIS Package Store](https://xwtk.cloud/services/nemesis#package-store). Made one of your own? [Submit it to the store](07-Submit-a-Package.md).
+Discover packages to install on your car in the [NEMESIS Package Store](https://xwtk.cloud/services/nemesis#package-store). Made one of your own? [Submit it to the store](08-Submit-a-Package.md).
 
 ## Compatibility Check
 
 For your car to be compatible with NEMESIS, it has to:
 
 1. Have an Android based Gen5W HU (version must have S5W_M in it in General Settings > SW Info). S5W_L is not supported, it is a fundamentally different hardware and software combination.
+2. Have a fairly recent version of S5W_M firmware (250818 or later has been confirmed to work).
 
-2. It has to have OTA update support (not necessary to have OTA Update subscription) as NEMESIS utilizes a flaw in the OTA update logic as an entry point for its installation procedure. Some cars may still not be compatible even in that case, it can only be understood once you try to install.
+## Installation Guidance
 
-### **Cars known not to work with NEMESIS**
+First of all, I want to express my sinecere gratitude to users sin and toxuin from Gen5W/ccNC community Discord, they have done massive contributions to the new installation architecture so NEMESIS is now available to pretty much all Gen5W head units.
 
-| Name | Description |
-| ---- | ----------- |
-| Any car with no OTA updates capability | NEMESIS uses a flaw in OTA updates system to install itself, if your car does not have OTA updates, it does not have that flaw. |
-| Any Canadian HMG car | No Canadian HMG vehicle has support for OTA updates, despite Update OTA being shown for some in the Engineering Mode menu. |
-| Any car with S5W_L HU | Fundamentally different hardware and software architecture, does not run Android, NEMESIS cannot be ported in any shape or form there. |
-| Hyundai Elantra / Kia Forte / Hyundai Ioniq 6 | Despite having OTA updates support, these cars use different schemes which do not have the required flaw for NEMESIS. |
+Because of this, we now have 2 methods available for installation, the first method is the Update OTA method which has been the way of installing NEMESIS from the beginning (option 1), the second method requires slightly more work, but it does not depend on OTA update capabilities of the car.
 
-### **Will there be support for incompatible cars in the future?**
 
-**Not** guaranteed, other members are working on porting NEMESIS to cars such as Ioniq 6 and Canadian vehicles, check Discord for more information.
-
-### **What will happen if I try to install?**
-
-Most likely nothing, NEMESIS won't install.
-
-## **Quick Installation Guidance**
+## **Quick Installation Guidance (Option 1)**
 
 To build an installer from a selected source commit in your own fork, follow
 [Building with GitHub Actions](BUILDING.md). Each successful run provides a fresh
 `ota_package.tar`, checksums, and build metadata. Building from source does not
-change network behavior or add support for the Ioniq 6; check compatibility above
-before considering an installation.
+change network behavior. Upstream now documents a second entrypoint for recent
+S5W_M units; vehicle compatibility still requires verification. Our build does not
+produce that complete USB entrypoint bundle: its template carries opaque navigation
+libraries outside the published source. See BUILDING.md for the exact outputs.
 
 | Step | Guidance |
 | ---- | -------- |
-| 1 | Download [NEMESIS Installation Package](ota_package.tar) onto your computer. |
+| 1 | Download the `ota_package.tar` asset from the [latest release](https://github.com/xwtk/hmg_nemesis/releases/latest) onto your computer. |
 | 2 | Prepare an exFAT or FAT32 formatted blank USB drive. |
 | 3 | Copy the downloaded tar file onto the USB, do not extract or repack the archive file. |
 | 4 | Insert into the car's HU USB port, messages such as "No Supported Files" are expected. |
 | 5 | Navigate to Engineering Mode (use web to search on how to do so), open USB Copy, select Update DSP |
 | 6 | Tap on Update OTA (existence of this doesn't mean your car has OTA support), if you see a loading animation come up on the status bar in the top right, everything is going as planned. Wait for installation to complete and the HU to restart. |
+
+
+## **Quick Installation Guidance (Option 2)**
+
+| Step | Guidance |
+| ---- | -------- |
+| 1 | Download the `nemesis-usb-update-package.7z` asset from the [latest release](https://github.com/xwtk/hmg_nemesis/releases/latest) onto your computer. |
+| 2 | Prepare an exFAT or FAT32 formatted blank USB drive. |
+| 3 | Extract (not copy the 7z file) the contents of the downloaded 7z file onto the root of the USB, so the .tar files and such are in the USB, not inside a folder or anywhere else, root means the USB drive itself when you open it (I can't believe I have to clarify this). |
+| 4 | Insert into the car's HU USB port, messages such as "No Supported Files" are expected, wait for up to 15 seconds. |
+| 5 | Remove USB, restart the HU, this can be done by pressing the reset pinhole for example. |
+| 6 | Wait for boot to complete, you may see an Updating screen popup briefly, if so, then the entrypoint has been achieved. Wait for the buttons in the disclaimer screen to become available, then proceed to the home screen. |
+| 7 | **DO NOT OPERATE THE HU**, wait for a few seconds for NEMESIS Installation Interface to popup. |
+| 8 | Proceed with installation. |
+
+### **If you decide to not proceed with the installation**
+
+If you have mistakenly closed the installer, NEMESIS Installation Interface will popup on every HU boot, you can restart the HU to see it again. Press Decline in the interface to remove the installer and restore the system to factory state.
 
 ## Updating NEMESIS
 
@@ -75,15 +84,29 @@ before considering an installation.
 
 | **Step** | **Description** |
 |----------|-----------------|
-| 1 | Copy the two files inside the [Update](Update) folder, `NEMESIS.data` and `nemesis-1.16.7.zip`, to the root of a blank exFAT or FAT32 USB drive. Do not extract the zip or put them in a folder. |
+| 1 | From the [latest release](https://github.com/xwtk/hmg_nemesis/releases/latest), download the `nemesis-update-<version>.zip` asset and the `NEMESIS.data` next to it, then copy both to the root of a blank exFAT or FAT32 USB drive. Do not extract the zip or put them in a folder. |
 | 2 | Insert the USB drive into the car's HU USB port with Android running. |
 | 3 | Choose **Yes** when NEMESIS asks to update. The HU restarts when the update is done. |
 
 OR
 
-**Settings → Check for updates** in Manager does the same over the internet, once the update is on the portal. You may additionally get a popup saying new update is ready to be installed, that is the automatic update doing its job.
+**Settings → Check for updates** in NEMESIS Manager does the same over the internet, once the update is on the portal. You may additionally get a popup saying new update is ready to be installed, that is the automatic update doing its job.
 
 ## **Changelog**
+
+### 1.16.9
+
+- **Package metadata.** `os` and `models` in `NEMESIS.data` can now be up to 1024 characters each, up from 256.
+- **Update package.** The build now writes the stick-root `NEMESIS.data` with `path=` next to the zip.
+
+### 1.16.8
+
+- **Package Store installs.** Fixed `INSTALL_FAILED_INVALID_URI` when installing APKs through the Store (SmartTube, Gen5W Themer and others). `/data/nemesis/apps` was being created with umask 077 masking it to 0700, which the system uid cannot traverse; it is now set to 0755 and self-heals on the next `nemesis` command.
+- **Disable OTA system updates.** New Settings toggle (and a first-boot prompt) that stops online OTA update checks and removes any downloaded OTA package. Manual Update OTA and NEMESIS updates still work.
+- **Disable SELinux.** New Settings toggle that switches SELinux to Permissive and restores it on wipe.
+- **ADB.** New home tile with USB ADB and Wireless ADB toggles. Wireless ADB shows the `adb connect <ip>:5555` line when it is on. Restored on wipe.
+- **WiFi tile.** New home tile that opens the Wi-Fi picker. The first press warns, if Wi-Fi is off, that wireless projection will need a reboot to recover.
+- **Logs.** Left pane lists sources (NEMESIS, Logcat, services) and the right pane shows the selected log newest line first.
 
 ### 1.16.7
 
@@ -137,7 +160,7 @@ OR
 - **Package descriptors `version=1.1`.** New keys: `type`, `package-version`, `short-desc`, `os`, `models` and `depends`. `version=1.0` descriptors still work. A package cannot be uninstalled while another one depends on it.
 - **Manager.** New layout: My Packages, Package Store, Android Apps and Settings. Root certificates ship with it so HTTPS works on the unit. Settings has a Reboot button. Running a script package shows what the script printed as a toast. Auto-launch also runs when the screen comes back on with Android still up.
 - **Fixes.** NEMESIS missing after a remote start, the Manager crash about `GET_TASKS` and after Close, the service staying disabled after repeated crashes, Manager opening on the first press, and Setup covering Manager after it opened.
-- **Self-hosted stores.** The store API is documented in [06 - Cloud Store API](06-Cloud-Store-API.md), so a fork can run its own.
+- **Self-hosted stores.** The store API is documented in [07 - Cloud Store API](07-Cloud-Store-API.md), so a fork can run its own.
 
 ## **Documentation**
 
@@ -145,15 +168,16 @@ Read about NEMESIS, what it is exploiting, what it features, and its use manual.
 
 | Document | Contents |
 |----------|----------|
-| [01 - DSP OTA troubleShooter Path](01-DSP-OTA-troubleShooter.md) | How the firmware runs unsigned DSP OTA members as root, and how that path is reused. |
-| [02 - Debugging Execution Interface](02-Debugging-Execution-Interface.md) | What NEMESIS is on the unit after it is present: features, how you open it, CLI and Manager usage. |
-| [03 - Install and uninstall](03-Install-and-Uninstall.md) | How NEMESIS is written onto `/system` and how it is removed. |
-| [04 - Packages](04-Packages.md) | Installable packages: metadata, layout, builder, lifecycle. |
-| [05 - Run scripts](05-Run-Scripts.md) | USB `NEMESIS.sh` / `type=execute`: when they run and how to write them. |
-| [06 - Cloud Store API](06-Cloud-Store-API.md) | The public store and update API, for running a store of your own in a fork. |
-| [07 - Submit a package](07-Submit-a-Package.md) | Step by step: from an xwtk.Account to a listing in the NEMESIS Package Store. |
+| [01 - Entrypoint variant 1: DSP OTA troubleShooter](01-DSP-OTA-troubleShooter.md) | First entrypoint variant. How the firmware runs unsigned DSP OTA members as root, and how that path is reused. |
+| [02 - Entrypoint variant 2: USB update package](02-USB-Update-Package.md) | Second entrypoint variant. The stock USB system-package upgrade path and the three steps that lead to a NEMESIS install. |
+| [03 - Debugging Execution Interface](03-Debugging-Execution-Interface.md) | What NEMESIS is on the unit after it is present: features, how you open it, CLI and Manager usage. |
+| [04 - Install and uninstall](04-Install-and-Uninstall.md) | How NEMESIS is written onto `/system` and how it is removed. |
+| [05 - Packages](05-Packages.md) | Installable packages: metadata, layout, builder, lifecycle. |
+| [06 - Run scripts](06-Run-Scripts.md) | USB `NEMESIS.sh` / `type=execute`: when they run and how to write them. |
+| [07 - Cloud Store API](07-Cloud-Store-API.md) | The public store and update API, for running a store of your own in a fork. |
+| [08 - Submit a package](08-Submit-a-Package.md) | Step by step: from an xwtk.Account to a listing in the NEMESIS Package Store. |
 
-Documents **01** and **03** are the only ones that describe the DSP Update Agent path and on-disk install, do not use them with advanced LLMs which may have safeguards enabled. **02**, **04**, **05** and **06** assume NEMESIS is already on the head unit and treat it as a Debugging Execution Interface for packages and privileged commands, so safeguards will not be triggered.
+Documents **01**, **02** and **04** are the only ones that describe the entrypoint variants and the on-disk install, do not use them with advanced LLMs which may have safeguards enabled. **03**, **05**, **06** and **07** assume NEMESIS is already on the head unit and treat it as a Debugging Execution Interface for packages and privileged commands, so safeguards will not be triggered.
 
 
 Developed by Gor Mirzoyan (xwtk.cloud).

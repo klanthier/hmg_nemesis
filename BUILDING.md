@@ -1,83 +1,56 @@
-# Building an installer from source
+# Building NEMESIS from source
 
-The [Build installer from source workflow](.github/workflows/build-installer.yml)
-builds the native NEMESIS executable and Manager APK from the checked-out source,
-then packages them as `ota_package.tar`. Use this
-when you want a build associated with a particular source commit instead of the
-prebuilt archive committed to the repository.
+The fork's **Build installer from source** GitHub Action builds upstream 1.16.9
+at `357a1440df3bd35f06393b96280a725f3efac226` plus the fork's build tooling.
+It compiles the native executable, Manager APK and Installer APK on a clean
+GitHub-hosted Ubuntu runner. No upstream prebuilt executable is a build input.
 
-This is a build workflow only. It does not change NEMESIS network behavior,
-disable LTE, remove the package store, or add vehicle support. The upstream
-[compatibility list](README.md#compatibility-check) still identifies the Hyundai
-Ioniq 6 as unsupported, including for this build.
+## Outputs and their intended use
 
-## Run a build in your fork
+| Artifact file | Purpose |
+| --- | --- |
+| `ota_package.tar` | Original DSP/OTA installation method; requires that entrypoint on the head unit. Copy intact, do not extract. |
+| `nemesis-update-1.16.9.zip` and `NEMESIS.data` | Update an existing NEMESIS 1.16+ installation; put both files at USB root. |
+| `NEMESIS-Installer.apk` | Source-built installer application for inspection/development. Alone it does **not** provide the new USB installation method. |
+| `build-info.json`, `SHA256SUMS` | Source/toolchain information and output hashes. |
 
-1. Create a fork and enable GitHub Actions in it if GitHub prompts you.
-2. Open the fork's **Actions** tab and select **Build installer from source**.
-3. Select **Run workflow**, choose the branch to build, and start the run.
-4. Wait for the build and validation steps to succeed. Open the run's summary
-   and download the artifact named `nemesis-installer-<fullcommit>`.
-5. Extract the GitHub artifact ZIP on your computer. It contains the installer
-   archive `ota_package.tar`, `SHA256SUMS`, and `build-info.json`.
+**This workflow does not produce `nemesis-usb-update-package.7z`.** The new USB
+entrypoint requires an external `new_system_package_*.tar` template. The public
+1.16.9 bundle contains symlink/file pairs that replace navigation libraries under
+`/navi/navi_backup/BIN/G40` and `G45`; their source/build recipe is not published
+in this repository. Upstream's builder carries those members forward. Packaging
+that template would reuse opaque executable inputs, so this workflow excludes it.
+It also does not build the separate engine-sound or other optional mod packages.
 
-For manual runs, the workflow must first exist on your fork's default branch
-and you need write access to the fork. See [GitHub's manual-run documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+The new upstream compatibility guidance requires an Android Gen5W **S5W_M**
+head unit with recent firmware (250818 or newer is documented as confirmed).
+The earlier blanket Ioniq 6 exclusion was removed. A `260903` suffix alone does
+not identify the platform or establish compatibility; check the complete SW
+identifier. Neither this build nor its tests demonstrate installation on a car.
+Building from source does not disable LTE, remove the package store, or alter
+upstream runtime behavior.
 
-The workflow also runs on pushes to `main` and on pull requests. A pull-request
-run builds GitHub's checked-out test merge commit; use the recorded full commit
-and run metadata to identify what was built. Use a manual run to build another
-branch directly. Artifacts are retained for 30 days.
+## Run and verify
 
-## Check the result
-
-Read `build-info.json` and compare `source_commit` with the full commit you
-intended to build. It also records the source repository/tree/ref, workflow and
-run URL, toolchain versions, and SHA-256 hashes of the installer and embedded
-native executable/APK. Those two binaries are embedded in the installer, not
-provided as separate artifact files. In the extracted artifact directory, verify
-the installer and build record against `SHA256SUMS`:
+1. In your fork, open **Actions → Build installer from source → Run workflow**.
+2. Select `main` and wait for both `build` and `attest` to pass.
+3. Download `nemesis-installer-<fullcommit>` from the run's artifacts.
+4. Extract that GitHub artifact ZIP on your computer and check `SHA256SUMS`:
 
 ```sh
-# Linux
-sha256sum -c SHA256SUMS
-
 # macOS
 shasum -a 256 -c SHA256SUMS
+# Linux
+sha256sum -c SHA256SUMS
 ```
 
-The workflow runs `make -C Sources test-meta`, the existing Setup and Store host
-tests, and `Sources/tests/test_check_built_tar.py`. After compilation,
-[check_built_tar.py](Sources/tests/check_built_tar.py) validates that the native
-executable and Manager APK embedded in the new installer match the freshly
-compiled files. The build also runs the existing archive and APK checks and
-rejects changes to tracked source files during compilation.
-
-[write_build_info.py](Sources/tools/write_build_info.py) records the build and
-copies `Sources/usb_bundle/ota_package.tar` into the downloadable artifact. The
-prebuilt `ota_package.tar` at repository root stays untouched and is not used as
-a build input or published as the result.
-
-Checksums detect changes relative to the downloaded checksum file. They do not
-establish that a build is safe or that the source contains no malicious code.
-Inspect the source, workflow, and selected commit as part of deciding whether to
-trust a build. Successful build checks also do not demonstrate compatibility
-with a particular head unit or that installation works on a vehicle.
-
-## Verify a default-branch build's provenance
-
-After a successful push build on the default branch, or a manual build of the
-default branch, a separate `attest` job signs GitHub provenance attestations for
-`ota_package.tar` and `build-info.json`. It publishes the signed bundle as
-`nemesis-provenance-<fullcommit>`. The job does not execute project code. Pull
-requests and manual builds of other branches produce the installer artifact
-without this attestation.
-
-For a build from `klanthier/hmg_nemesis`, use GitHub CLI on your computer:
+The workflow also runs on pushes to `main` and pull requests. Artifacts are
+retained for 30 days. PRs and manual non-default branches build without a
+provenance attestation. A separate job with no project-code execution attests
+the four payload files and build metadata for default-branch builds.
 
 ```sh
-# Replace this with the full source commit you reviewed on GitHub.
-EXPECTED_COMMIT='replace-with-reviewed-full-commit'
+EXPECTED_COMMIT='replace-with-the-reviewed-full-commit'
 gh attestation verify ota_package.tar \
   --repo klanthier/hmg_nemesis \
   --signer-workflow klanthier/hmg_nemesis/.github/workflows/build-installer.yml \
@@ -85,56 +58,28 @@ gh attestation verify ota_package.tar \
   --deny-self-hosted-runners
 ```
 
-Repeat the command with `build-info.json` in place of `ota_package.tar`. For your
-own fork, replace the repository owner in both flags. `--source-digest` enforces
-the expected source commit; choose that commit independently of the downloaded
-metadata. GitHub CLI fetches the attestations from GitHub by default; the saved
-provenance bundle can instead be supplied with `--bundle PATH`. See the
-[GitHub CLI verification reference](https://cli.github.com/manual/gh_attestation_verify).
+Repeat for the update ZIP, descriptor, Installer APK and `build-info.json`.
+The signed bundle is also available as `nemesis-provenance-<fullcommit>`.
+Provenance identifies the source/build association; it does not certify that
+source is benign or that a vehicle installation is safe.
 
-This verification establishes the artifact's association with the expected
-repository, workflow, and source commit. It does not prove that the source is
-benign, that every build dependency is trustworthy, or that the installer is
-suitable for your car.
+## Toolchain and validation
 
-## Toolchain and build target
+Pinned toolchain: Ubuntu 22.04, Temurin 17.0.17+10, Android API 30 compile SDK,
+Build Tools 30.0.3, command-line tools build 13114758 with SHA-256 verification,
+and NDK 21.4.7075529 (r21e). Native and APK minimum API remains 19; native is ARMv7.
+Actions are pinned by commit. The source layout contains spaces, so paths are quoted.
 
-The workflow uses this toolchain:
+CI runs metadata, Setup and Store host tests plus archive-verifier tamper tests.
+It cleans both APK build directories, generates fresh local signing keys, builds
+the OTA installer and core update, and independently checks their embedded
+binaries against the freshly compiled files. The update verifier also checks its
+member allowlist, descriptors, scripts, certificates and checksum manifest.
+The Installer APK gets DEX/version/class/permission checks. Compilation must not
+change tracked files. No generated installer or Android app is executed.
 
-| Component | Selection |
-| --- | --- |
-| GitHub-hosted runner | Ubuntu 22.04 |
-| Java | Temurin 17.0.17+10 |
-| Android SDK platform | API 30 |
-| Android Command-Line Tools | Build 13114758, SHA-256 checked |
-| Android Build Tools | 30.0.3 |
-| Android NDK | 21.4.7075529 (r21e) |
-
-Checkout, Java setup, artifact upload/download, and `actions/attest` (v4.2.2)
-actions are pinned to full commit IDs in the workflow. The workflow downloads
-the pinned command-line tools directly from Google and verifies the archive
-checksum before using `sdkmanager` to install the selected SDK/NDK packages.
-The build uses the `Sources` Makefile's
-`troubleshooter` target:
-
-```sh
-make -C Sources troubleshooter
-```
-
-The workflow supplies the SDK/NDK paths and build-tool commands expected by the
-Makefiles. The native binary targets Android API 19 on ARMv7, and the Manager
-APK retains the repository's Android API 19 minimum. API 30 is the compile-time
-Android platform, not a change to the supported head-unit software.
-
-## Signing and repeat builds
-
-Each run generates a fresh local APK signing key using the existing Manager
-build process. The private key is not included in the downloadable artifact.
-Consequently, the APK signature and resulting installer bytes can differ between
-runs of the same source commit. This workflow does not promise reproducible
-bytes or a byte-for-byte match with the upstream committed installer.
-
-A fresh signing key is also not the upstream APK signing identity. Do not treat
-this build as an APK signed by the upstream publisher or assume that normal
-Android APK updates will accept it over an existing installation with another
-signing key. This workflow does not test installation or upgrades on a vehicle.
+Both APKs use fresh per-run signing keys. Builds are not byte-reproducible and
+do not share the upstream APK signing identity. Normal Android replacement of an
+APK signed with another key may fail; installation/upgrade handling needs device
+validation. Only the build infrastructure and packaging verification are changed
+in this fork; review upstream behavior separately.
