@@ -66,8 +66,6 @@ public class SettingsActivity extends Activity {
                     Trigger.label(this) + ". " + getString(R.string.trigger_hint), "trigger", false));
             rows.add(new TwoLineAdapter.Row(getString(R.string.auto_launch),
                     getString(R.string.auto_launch_sum), "auto", false));
-            rows.add(new TwoLineAdapter.Row(getString(R.string.use_telematics),
-                    getString(R.string.use_telematics_sum), "telematics", false));
             rows.add(new TwoLineAdapter.Row(getString(R.string.block_ota),
                     getString(R.string.block_ota_sum), "ota", false));
             rows.add(new TwoLineAdapter.Row(getString(R.string.disable_selinux),
